@@ -349,7 +349,8 @@ namespace EasyEDA_Loader
 
         public async Task<List<PartInfo>> SearchProductInfoAsync(string lcscId)
         {
-            string url = $"https://pro.easyeda.com/api/v2/eda/product/search";
+            // The server now reads the part number from the query string and ignores the JSON body
+            string url = $"https://pro.easyeda.com/api/v2/eda/product/search?keyword={lcscId}";
             Debug.WriteLine($"[API] POST Request: {url}");
             Console.WriteLine($"[API] POST Request: {url}");
 

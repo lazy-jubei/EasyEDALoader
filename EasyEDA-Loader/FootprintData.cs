@@ -124,7 +124,7 @@ namespace EasyEDA_Loader
         public bool HasIdFlag { get; set; }
 
         [JsonProperty("utime")]
-        public int Utime { get; set; }
+        public int? Utime { get; set; } // some parts return "utime": "" (e.g. C5360828)
 
         [JsonProperty("newgId")]
         public bool NewgId { get; set; }
