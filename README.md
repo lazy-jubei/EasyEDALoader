@@ -40,7 +40,7 @@ Left EasyEDA, Right Altium after import
 
 You shouldn't need anything special to build, just .NET 4.8, Language v8.0, and probably assembly references to Altium's internal libraries.
 
-The following Assembly references were made and can be found in 
+The following Assembly references were made and can be found in
 
 ```
 C:\Program Files\Altium\AD24\System
@@ -67,43 +67,111 @@ The standalone version is a simple WPF app that draws the primitives to a Canvas
 
 # Installation
 
-Copy to your Offline Setup Altium Designer Extensions directory so that it can be installed from Extensions
+There are two ways to install EasyEDA-Loader.
 
-Or extract contents to for example:
+## Option 1: Install from a Release Archive (Recommended)
 
-`C:\ProgramData\Altium\Altium Designer {08BC8A67-180A-4240-B39B-AF5998437998}\Extensions\EasyEDA-Loader`
+Download the latest release archive from the [Releases](https://github.com/your-org/EasyEDALoader/releases) page. The archive contains a ready-to-deploy `dist\` folder alongside `Deploy.ps1`.
 
-And register it to your ExtensionsRegistry.xml with contents near the bottom:
+1. Extract the archive to any location.
+2. Open a PowerShell terminal in that directory.
+3. Run the deploy script:
 
+```powershell
+.\Deploy.ps1
 ```
- <Item HRID="EasyEDA-Loader" Guid="8035C261-E5FE-403B-A9B5-9ABFFB6E0EF5">
-    <Path>C:\ProgramData\Altium\Altium Designer {08BC8A67-180A-4240-B39B-AF5998437998}\Extensions\EasyEDA-Loader</Path>
-    <Status>0</Status>
-    <VaultGuid></VaultGuid>
-    <CreatedBy>Altium, Inc.</CreatedBy>
-    <CategoryGuid>793A1F67-0B22-4E01-A5DE-3176A1E8C60D</CategoryGuid>
-    <CategoryName></CategoryName>
-    <ReadMe></ReadMe>
-    <Help></Help>
-    <Requirements></Requirements>
-    <Title>EasyEDA-Loader</Title>
-    <ShortDescription>EasyEDA-Loader</ShortDescription>
-    <LongDescription>EasyEDA-Loader</LongDescription>
-    <SmallImage></SmallImage>
-    <LargeImage></LargeImage>
-    <Version>1.0.0.0</Version>
-    <VersionGuid>7042BC82-F870-462D-86AF-B158AC75C490</VersionGuid>
-    <ReleasedDate>45495.4140277778</ReleasedDate>
-    <ReleaseNotes></ReleaseNotes>
-    <DateInstalled>45838.7675816088</DateInstalled>
-    <PlatformVersions>
-      <DXP BuildNumber="1.0.16.41"/>
-      <EDP BuildNumber="10.0.16.41"/>
-      <MaxDXP BuildNumber="0.0.0.0"/>
-      <MaxEDP BuildNumber="0.0.0.0"/>
-    </PlatformVersions>
-  </Item>
+
+The script will:
+- Automatically discover your Altium Designer installation (no hardcoded GUIDs).
+- Copy plugin files into the correct `Extensions\EasyEDA-Loader` folder.
+- Register the extension in `ExtensionsRegistry.xml`.
+- Prompt if Altium Designer is currently running (use `-Force` to skip the prompt).
+
+```powershell
+.\Deploy.ps1 -Force      # Deploy even if Altium is running
+.\Deploy.ps1 -SkipRegistry  # Copy files only, skip registry update
 ```
+
+## Option 2: Build & Deploy from Source
+
+If you have the source code, use the build script suite to build, package, and deploy in one step.
+
+### Script Overview
+
+| Script | Description |
+|--------|-------------|
+| `_Shared.ps1` | Shared helper functions (dot-sourced by other scripts, do not run directly) |
+| `Build.ps1` | Builds the plugin (via MSBuild) and optionally the Standalone app (via dotnet) |
+| `Package.ps1` | Stages built artifacts into `dist\`, excluding Altium SDK and DevExpress DLLs (provided at runtime) |
+| `Deploy.ps1` | Copies `dist\` into the Altium Extensions folder and registers in `ExtensionsRegistry.xml` |
+| `All.ps1` | Orchestrates Build, Package, and Deploy in sequence |
+
+### Prerequisites
+
+- Visual Studio 2022 or later with MSBuild (for plugin build)
+- .NET SDK 6.0+ (for Standalone build, if using `-IncludeStandalone`)
+- Altium Designer 24 installed on the target machine
+- PowerShell 5.1+ (run as Administrator when deploying)
+
+### Quick Start
+
+```powershell
+cd path\to\EasyEDALoader
+
+# Build, package, and deploy in one command:
+.\All.ps1
+
+# Debug build:
+.\All.ps1 -Configuration Debug
+
+# Deploy even if Altium Designer is currently running:
+.\All.ps1 -Force
+
+# Also build the Standalone viewer app:
+.\All.ps1 -IncludeStandalone
+```
+
+### Running Steps Individually
+
+```powershell
+# Step 1: Build the plugin (and optionally Standalone)
+.\Build.ps1
+.\Build.ps1 -Configuration Debug
+.\Build.ps1 -IncludeStandalone
+
+# Step 2: Stage files into dist\
+.\Package.ps1
+.\Package.ps1 -IncludeStandalone
+
+# Step 3: Deploy into Altium Designer
+.\Deploy.ps1
+.\Deploy.ps1 -Force
+.\Deploy.ps1 -SkipRegistry
+```
+
+### DLL Bundling Strategy
+
+The build scripts follow the same deployment pattern as the AltiumMCP extension. Only third-party and polyfill DLLs that Altium Designer does **not** ship are bundled alongside the plugin:
+
+**Bundled with the plugin:**
+| DLL | Purpose |
+|-----|---------|
+| `EasyEDA-Loader.dll` | The plugin |
+| `EasyEDA-Loader.Ins` | Server manifest |
+| `EasyEDA-Loader.rcs` | Menu resources |
+| `EasyEDA-Loader.dll.config` | Assembly binding redirects |
+| `Microsoft.Bcl.AsyncInterfaces.dll` | Async/await polyfill |
+| `Newtonsoft.Json.dll` | JSON serialization |
+| `System.Buffers.dll` | Span\<T\> / Memory\<T\> |
+| `System.IO.Pipelines.dll` | Stream pipe processing |
+| `System.Memory.dll` | Memory\<T\> support |
+| `System.Numerics.Vectors.dll` | SIMD Vector\<T\> |
+| `System.Runtime.CompilerServices.Unsafe.dll` | Unsafe ref operations |
+| `System.Threading.Tasks.Extensions.dll` | ValueTask support |
+| `System.ValueTuple.dll` | ValueTuple support |
+
+**NOT bundled (provided by Altium Designer at runtime):**
+`Altium.SDK.dll`, `Altium.SDK.Interfaces.dll`, `Altium.Controls.dll`, `Altium.Controls.Skins.dll`, and all `DevExpress.*.dll` (v22.1).
 
 ## Known Issues
 The 3D model is not places *quite* right, something is still different from the reported translation and the actual. See [EeFootprint3dModel](/EasyEDA-Loader/FootprintShapes/EeFootprint3dModel.cs) for more information and how and where it retrieves model info from.
