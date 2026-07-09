@@ -1,4 +1,4 @@
-﻿using PCB;
+using PCB;
 using System;
 using System.Collections.Generic;
 using System.Windows;
@@ -15,11 +15,11 @@ namespace EasyEDA_Loader
             var parts = data.Split(new[] { "~" }, StringSplitOptions.None);
             return new EeFootprintVia
             {
-                CenterX = ConvertToMM(double.Parse(parts[1])),
-                CenterY = ConvertToMM(double.Parse(parts[2])),
-                Diameter = ConvertToMM(double.Parse(parts[3])),
+                CenterX = ConvertToMM(double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture)),
+                CenterY = ConvertToMM(double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture)),
+                Diameter = ConvertToMM(double.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture)),
                 Net = parts[4],
-                Radius = ConvertToMM(double.Parse(parts[5])),
+                Radius = ConvertToMM(double.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture)),
                 Id = parts[6],
                 IsLocked = ParseBoolean(parts[7]),
             };

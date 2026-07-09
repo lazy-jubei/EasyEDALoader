@@ -1,4 +1,4 @@
-﻿using PCB;
+using PCB;
 using System;
 using System.Collections.Generic;
 using System.Windows;
@@ -15,11 +15,11 @@ namespace EasyEDA_Loader
             var parts = data.Split(new[] { "~" }, StringSplitOptions.None);
             return new EeFootprintRectangle
             {
-                X = ConvertToMM(double.Parse(parts[1])),
-                Y = ConvertToMM(double.Parse(parts[2])),
-                Width = ConvertToMM(double.Parse(parts[3])),
-                Height = ConvertToMM(double.Parse(parts[4])),
-                StrokeWidth = ConvertToMM(double.Parse(parts[8])),
+                X = ConvertToMM(double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture)),
+                Y = ConvertToMM(double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture)),
+                Width = ConvertToMM(double.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture)),
+                Height = ConvertToMM(double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture)),
+                StrokeWidth = ConvertToMM(double.Parse(parts[8], System.Globalization.CultureInfo.InvariantCulture)),
                 Id = parts[6],
                 LayerId = parts[5],
                 IsLocked = ParseBoolean(parts[7]),

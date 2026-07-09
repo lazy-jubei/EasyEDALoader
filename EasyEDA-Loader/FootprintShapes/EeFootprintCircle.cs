@@ -1,4 +1,4 @@
-﻿using PCB;
+using PCB;
 using System;
 using System.Collections.Generic;
 using System.Windows;
@@ -15,10 +15,10 @@ namespace EasyEDA_Loader
             var parts = data.Split(new[] { "~" }, StringSplitOptions.None);
             return new EeFootprintCircle
             {
-                Cx = ConvertToMM(double.Parse(parts[1])),
-                Cy = ConvertToMM(double.Parse(parts[2])),
-                Radius = ConvertToMM(double.Parse(parts[3])),
-                StrokeWidth = ConvertToMM(double.Parse(parts[4])),
+                Cx = ConvertToMM(double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture)),
+                Cy = ConvertToMM(double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture)),
+                Radius = ConvertToMM(double.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture)),
+                StrokeWidth = ConvertToMM(double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture)),
                 LayerId = parts[5],
                 Id = parts[6],
                 IsLocked = ParseBoolean(parts[7]),

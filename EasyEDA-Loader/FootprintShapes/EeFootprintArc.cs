@@ -1,4 +1,4 @@
-﻿using PCB;
+using PCB;
 using System;
 using System.Collections.Generic;
 using System.Windows;
@@ -17,8 +17,8 @@ namespace EasyEDA_Loader
                 string arcPath = path.Replace(",", " ").Replace("M ", "M").Replace("A ", "A");
 
                 string[] startCoords = arcPath.Split('A')[0].Substring(1).Split(new[] { ' ' }, 2);
-                double startX = ConvertToMM(double.Parse(startCoords[0]));
-                double startY = ConvertToMM(double.Parse(startCoords[1]));
+                double startX = ConvertToMM(double.Parse(startCoords[0], System.Globalization.CultureInfo.InvariantCulture));
+                double startY = ConvertToMM(double.Parse(startCoords[1], System.Globalization.CultureInfo.InvariantCulture));
 
                 string arcParameters = arcPath.Split('A')[1].Replace("  ", " ");
                 string[] arcParts = arcParameters.Split(new[] { ' ' }, 7);
@@ -31,17 +31,17 @@ namespace EasyEDA_Loader
                 string endXStr = arcParts[5];
                 string endYStr = arcParts[6];
 
-                var (rx, ry) = SvgArcUtils.Rotate(ConvertToMM(double.Parse(svgRx)), ConvertToMM(double.Parse(svgRy)), 0);
+                var (rx, ry) = SvgArcUtils.Rotate(ConvertToMM(double.Parse(svgRx, System.Globalization.CultureInfo.InvariantCulture)), ConvertToMM(double.Parse(svgRy, System.Globalization.CultureInfo.InvariantCulture)), 0);
 
-                double endX = ConvertToMM(double.Parse(endXStr));
-                double endY = ConvertToMM(double.Parse(endYStr));
+                double endX = ConvertToMM(double.Parse(endXStr, System.Globalization.CultureInfo.InvariantCulture));
+                double endY = ConvertToMM(double.Parse(endYStr, System.Globalization.CultureInfo.InvariantCulture));
 
                 double x, y, radius, startAngle, endAngle;
                 if (ry != 0)
                 {
                     (x, y, radius, startAngle, endAngle) = SvgArcUtils.ComputeArc(
                         startX, startY, rx, ry,
-                        double.Parse(xAxisRotation),
+                        double.Parse(xAxisRotation, System.Globalization.CultureInfo.InvariantCulture),
                         largeArc == "1",
                         sweep == "1",
                         endX, endY
@@ -75,7 +75,7 @@ namespace EasyEDA_Loader
             var parts = data.Split(new[] { "~" }, StringSplitOptions.None);
             return new EeFootprintArc
             {
-                StrokeWidth = ConvertToMM(double.Parse(parts[1])),
+                StrokeWidth = ConvertToMM(double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture)),
                 LayerId = parts[2],
                 Net = parts[3],
                 Path = ArcPath.FromString(parts[4]),

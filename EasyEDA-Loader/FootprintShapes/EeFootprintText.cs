@@ -1,4 +1,4 @@
-﻿using PCB;
+using PCB;
 using System;
 
 namespace EasyEDA_Loader
@@ -11,14 +11,14 @@ namespace EasyEDA_Loader
             return new EeFootprintText
             {
                 Type = parts[1],
-                CenterX = ConvertToMM(double.Parse(parts[2])),
-                CenterY = ConvertToMM(double.Parse(parts[3])),
-                StrokeWidth = ConvertToMM(double.Parse(parts[4])),
-                Rotation = double.Parse(parts[5]),
+                CenterX = ConvertToMM(double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture)),
+                CenterY = ConvertToMM(double.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture)),
+                StrokeWidth = ConvertToMM(double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture)),
+                Rotation = double.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture),
                 Mirror = parts[6],
                 LayerId = parts[7],
                 Net = parts[8],
-                FontSize = ConvertToMM(double.Parse(parts[9])),
+                FontSize = ConvertToMM(double.Parse(parts[9], System.Globalization.CultureInfo.InvariantCulture)),
                 Text = parts[10],
                 TextPath = parts[11],
                 IsDisplayed = ParseDisplay(parts[12]),

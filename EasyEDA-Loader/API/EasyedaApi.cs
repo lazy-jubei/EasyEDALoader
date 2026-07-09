@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -299,21 +299,21 @@ namespace EasyEDA_Loader
                     {
                         size = new Vec3
                         {
-                            X = EeShape.ConvertToMM(double.Parse(transformInfo[0])) / 10,
-                            Y = EeShape.ConvertToMM(double.Parse(transformInfo[1])) / 10,
-                            Z = EeShape.ConvertToMM(double.Parse(transformInfo[2])) / 10,
+                            X = EeShape.ConvertToMM(double.Parse(transformInfo[0], System.Globalization.CultureInfo.InvariantCulture)) / 10,
+                            Y = EeShape.ConvertToMM(double.Parse(transformInfo[1], System.Globalization.CultureInfo.InvariantCulture)) / 10,
+                            Z = EeShape.ConvertToMM(double.Parse(transformInfo[2], System.Globalization.CultureInfo.InvariantCulture)) / 10,
                         };
                         rotation = new Vec3
                         {
-                            X = double.Parse(transformInfo[3]),
-                            Y = double.Parse(transformInfo[4]),
-                            Z = double.Parse(transformInfo[5]),
+                            X = double.Parse(transformInfo[3], System.Globalization.CultureInfo.InvariantCulture),
+                            Y = double.Parse(transformInfo[4], System.Globalization.CultureInfo.InvariantCulture),
+                            Z = double.Parse(transformInfo[5], System.Globalization.CultureInfo.InvariantCulture),
                         };
                         offset = new Vec3
                         {
-                            X = EeShape.ConvertToMM(double.Parse(transformInfo[6])) / 10,
-                            Y = EeShape.ConvertToMM(double.Parse(transformInfo[7])) / 10,
-                            Z = EeShape.ConvertToMM(double.Parse(transformInfo[8])) / 10,
+                            X = EeShape.ConvertToMM(double.Parse(transformInfo[6], System.Globalization.CultureInfo.InvariantCulture)) / 10,
+                            Y = EeShape.ConvertToMM(double.Parse(transformInfo[7], System.Globalization.CultureInfo.InvariantCulture)) / 10,
+                            Z = EeShape.ConvertToMM(double.Parse(transformInfo[8], System.Globalization.CultureInfo.InvariantCulture)) / 10,
                         };
                     }
                 }
