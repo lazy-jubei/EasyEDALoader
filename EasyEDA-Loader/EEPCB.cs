@@ -43,12 +43,18 @@ namespace EasyEDA_Loader
                 case "TopPasteMaskLayer": return TLayerConstant.eTopPaste;
                 case "BottomPasteMaskLayer": return TLayerConstant.eBottomPaste;
                 case "TopSolderMaskLayer": return TLayerConstant.eTopSolder;
-                case "BottomSolderMaskLayer": return TLayerConstant.eBottomPaste;
+                case "BottomSolderMaskLayer": return TLayerConstant.eBottomSolder;
                 case "BoardOutline": return TLayerConstant.eMechanical1;
+                case "BoardOutLine": return TLayerConstant.eMechanical1;
                 case "Multi-Layer": return TLayerConstant.eMultiLayer;
                 case "TopAssembly": return TLayerConstant.eMechanical7;
+                case "BottomAssembly": return TLayerConstant.eMechanical8;
                 case "Mechanical": return TLayerConstant.eMechanical15;
                 case "3DModel": return TLayerConstant.eMechanical13;
+                case "Document": return TLayerConstant.eMechanical16;
+                case "ComponentShapeLayer": return TLayerConstant.eMechanical9;
+                case "LeadShapeLayer": return TLayerConstant.eMechanical10;
+                case "ComponentMarkingLayer": return TLayerConstant.eMechanical11;
                 default: throw new LayerMapException($"Invalid layer {layer}");
             }
         }
@@ -118,7 +124,7 @@ namespace EasyEDA_Loader
             if (textObject == null) return null;
             textObject.SetState_V7Layer(new V7_Layer(layer));
             textObject.SetState_XLocation(AltiumApi.MmToCoord(x) + c.GetState_XLocation());
-            textObject.SetState_YLocation(AltiumApi.MmToCoord(y) + c.GetState_XLocation());
+            textObject.SetState_YLocation(AltiumApi.MmToCoord(y) + c.GetState_YLocation());
             textObject.SetState_Text(text);
             textObject.SetState_Size(AltiumApi.MmToCoord(size));
             textObject.SetState_Width(AltiumApi.MmToCoord(width));

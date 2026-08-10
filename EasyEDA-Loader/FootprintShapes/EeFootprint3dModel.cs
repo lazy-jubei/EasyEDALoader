@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using PCB;
 using System;
 using System.Globalization;
@@ -17,8 +17,8 @@ namespace EasyEDA_Loader
             var originParts = node.Attrs.COrigin.Split(new[] { "," }, StringSplitOptions.None);
             var rotationParts = node.Attrs.CRotation.Split(new[] { "," }, StringSplitOptions.None);
 
-            double CenterX = double.Parse(originParts[0]);
-            double CenterY = double.Parse(originParts[1]);
+            double CenterX = double.Parse(originParts[0], System.Globalization.CultureInfo.InvariantCulture);
+            double CenterY = double.Parse(originParts[1], System.Globalization.CultureInfo.InvariantCulture);
 
             // Center compute, shouldnt be needed, the GL engine does this for verification of somekind
             /*
@@ -30,10 +30,10 @@ namespace EasyEDA_Loader
                                 var points = childNode.Attrs.Points.Split(' ');
                                 for (var i = 0; i < points.Length; i += 2)
                                 {
-                                    minX = Math.Min(double.Parse(points[i]), minX);
-                                    minY = Math.Min(double.Parse(points[i + 1]), minY);
-                                    maxX = Math.Max(double.Parse(points[i]), maxX);
-                                    maxY = Math.Max(double.Parse(points[i + 1]), maxY);
+                                    minX = Math.Min(double.Parse(points[i], System.Globalization.CultureInfo.InvariantCulture), minX);
+                                    minY = Math.Min(double.Parse(points[i + 1], System.Globalization.CultureInfo.InvariantCulture), minY);
+                                    maxX = Math.Max(double.Parse(points[i], System.Globalization.CultureInfo.InvariantCulture), maxX);
+                                    maxY = Math.Max(double.Parse(points[i + 1], System.Globalization.CultureInfo.InvariantCulture), maxY);
                                 }
                             }
                             // Only use computed centers if they were computed
@@ -49,19 +49,19 @@ namespace EasyEDA_Loader
             {
                 Name = node.Attrs.Title,
                 Uuid = node.Attrs.Uuid,
-                Height = ConvertToMM(double.Parse(node.Attrs.CHeight)),
-                Width = ConvertToMM(double.Parse(node.Attrs.CWidth)),
+                Height = ConvertToMM(double.Parse(node.Attrs.CHeight, System.Globalization.CultureInfo.InvariantCulture)),
+                Width = ConvertToMM(double.Parse(node.Attrs.CWidth, System.Globalization.CultureInfo.InvariantCulture)),
                 Translation = new Vec3
                 {
                     X = ConvertToMM(CenterX),
                     Y = ConvertToMM(CenterY),
-                    Z = ConvertToMM(double.Parse(node.Attrs.Z))
+                    Z = ConvertToMM(double.Parse(node.Attrs.Z, System.Globalization.CultureInfo.InvariantCulture))
                 },
                 Rotation = new Vec3
                 {
-                    X = double.Parse(rotationParts[0]),
-                    Y = double.Parse(rotationParts[1]),
-                    Z = double.Parse(rotationParts[2])
+                    X = double.Parse(rotationParts[0], System.Globalization.CultureInfo.InvariantCulture),
+                    Y = double.Parse(rotationParts[1], System.Globalization.CultureInfo.InvariantCulture),
+                    Z = double.Parse(rotationParts[2], System.Globalization.CultureInfo.InvariantCulture)
                 }
             };
         }

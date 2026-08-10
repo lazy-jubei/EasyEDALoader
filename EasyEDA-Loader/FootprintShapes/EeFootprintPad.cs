@@ -1,4 +1,4 @@
-﻿using PCB;
+using PCB;
 using System;
 using System.Collections.Generic;
 using System.Windows;
@@ -16,18 +16,18 @@ namespace EasyEDA_Loader
             return new EeFootprintPad
             {
                 Shape = parts[1],
-                CenterX = ConvertToMM(double.Parse(parts[2])),
-                CenterY = ConvertToMM(double.Parse(parts[3])),
-                Width = ConvertToMM(double.Parse(parts[4])),
-                Height = ConvertToMM(double.Parse(parts[5])),
+                CenterX = ConvertToMM(double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture)),
+                CenterY = ConvertToMM(double.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture)),
+                Width = ConvertToMM(double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture)),
+                Height = ConvertToMM(double.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture)),
                 Layer = parts[6],
                 Net = parts[7],
                 Number = parts[8],
-                HoleRadius = ConvertToMM(double.Parse(parts[9])),
+                HoleRadius = ConvertToMM(double.Parse(parts[9], System.Globalization.CultureInfo.InvariantCulture)),
                 Points = EePoint.ListFromString(parts[10]),
-                Rotation = double.Parse(parts[11]),
+                Rotation = double.Parse(parts[11], System.Globalization.CultureInfo.InvariantCulture),
                 Id = parts[12],
-                HoleLength = ConvertToMM(double.Parse(parts[13])),
+                HoleLength = ConvertToMM(double.Parse(parts[13], System.Globalization.CultureInfo.InvariantCulture)),
                 HolePoints = EePoint.ListFromString(parts[14]),
                 IsPlated = ParseBoolean(parts[15]),
                 IsLocked = ParseBoolean(parts[16]),

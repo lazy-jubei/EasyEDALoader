@@ -75,6 +75,7 @@ namespace EasyEDA_Loader
 
             var ctx = new CancellationTokenSource();
             var api = new EasyedaApi();
+            ImportLog.Reset();
 
             string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             string libraryPath = Path.Combine(documentsPath, "AltiumEE");
@@ -131,7 +132,7 @@ namespace EasyEDA_Loader
                                 CancelToken = ctx.Token,
                                 Exception = (Exception ex) =>
                                 {
-                                    // Log problems here?
+                                    ImportLog.Error($"footprint '{package}'", ex);
                                     return true;
                                 },
                                 ModelTask = modelTask,
@@ -187,6 +188,13 @@ namespace EasyEDA_Loader
 
             // Return to the original document we started in
             AltiumApi.GlobalVars.Client.ShowDocument(currentDoc);
+
+            if (ImportLog.ErrorCount > 0)
+            {
+                MessageBox.Show(
+                    $"{ImportLog.ErrorCount} primitive(s) failed to import. Details were written to:\n{ImportLog.LogPath}",
+                    "EasyEDA Loader", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
 
             // Close the library documents if requested
             if (dialog.CloseDocuments)

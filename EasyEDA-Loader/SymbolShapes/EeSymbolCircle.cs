@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace EasyEDA_Loader
 {
@@ -9,9 +9,9 @@ namespace EasyEDA_Loader
             var parts = data.Split(new[] { "~" }, StringSplitOptions.None);
             return new EeSymbolCircle
             {
-                CenterX = double.Parse(parts[0]),
-                CenterY = double.Parse(parts[1]),
-                Radius = double.Parse(parts[2]),
+                CenterX = double.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture),
+                CenterY = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture),
+                Radius = double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture),
                 StrokeColor = parts[3],
                 StrokeWidth = parts[4],
                 StrokeStyle = parts[5],

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace EasyEDA_Loader
 {
@@ -9,10 +9,10 @@ namespace EasyEDA_Loader
             var parts = data.Split(new[] { "~" }, StringSplitOptions.None);
             return new EeSymbolEllipse
             {
-                CenterX = double.Parse(parts[1]),
-                CenterY = double.Parse(parts[2]),
-                RadiusX = double.Parse(parts[3]),
-                RadiusY = double.Parse(parts[4]),
+                CenterX = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture),
+                CenterY = double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture),
+                RadiusX = double.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture),
+                RadiusY = double.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture),
                 StrokeColor = parts[5],
                 StrokeWidth = parts[6],
                 StrokeStyle = parts[7],
