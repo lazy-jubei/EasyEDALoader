@@ -1,11 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <OutputType>Library</OutputType>
     <AssemblyName>EasyEDA-Loader</AssemblyName>
     <RootNamespace>EasyEDA_Loader</RootNamespace>
-    <LangVersion>9.0</LangVersion>
+    <LangVersion>12.0</LangVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <PlatformTarget>x64</PlatformTarget>
+    <AltiumInstallDir Condition="'$(AltiumInstallDir)' == ''">$(ALTIUM_INSTALL_DIR)</AltiumInstallDir>
+    <AltiumInstallDir Condition="'$(AltiumInstallDir)' == ''">C:\Program Files\Altium\AD26</AltiumInstallDir>
+    <DevExpressVersion Condition="'$(DevExpressVersion)' == ''">25.2</DevExpressVersion>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
@@ -19,18 +24,23 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="Altium.Controls"><HintPath>Assemblies\Altium.Controls.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Altium.Controls.Skins"><HintPath>Assemblies\Altium.Controls.Skins.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Altium.SDK"><HintPath>Assemblies\Altium.SDK.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Altium.SDK.Interfaces"><HintPath>Assemblies\Altium.SDK.Interfaces.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="DevExpress.Data.v22.1"><HintPath>Assemblies\DevExpress.Data.v22.1.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="DevExpress.Mvvm.v22.1"><HintPath>Assemblies\DevExpress.Mvvm.v22.1.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="DevExpress.Printing.v22.1.Core"><HintPath>Assemblies\DevExpress.Printing.v22.1.Core.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="DevExpress.Utils.v22.1"><HintPath>Assemblies\DevExpress.Utils.v22.1.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="DevExpress.Xpf.Core.v22.1"><HintPath>Assemblies\DevExpress.Xpf.Core.v22.1.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="DevExpress.Xpf.Grid.v22.1.Core"><HintPath>Assemblies\DevExpress.Xpf.Grid.v22.1.Core.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="DevExpress.Xpf.Grid.v22.1"><HintPath>Assemblies\DevExpress.Xpf.Grid.v22.1.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Altium.Controls"><HintPath>$(AltiumInstallDir)/System/Altium.Controls.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Altium.SDK"><HintPath>$(AltiumInstallDir)/System/Altium.SDK.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Altium.SDK.Interfaces"><HintPath>$(AltiumInstallDir)/System/Altium.SDK.Interfaces.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Data.v$(DevExpressVersion)"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Data.v$(DevExpressVersion).dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Data.Desktop.v$(DevExpressVersion)"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Data.Desktop.v$(DevExpressVersion).dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Mvvm.v$(DevExpressVersion)"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Mvvm.v$(DevExpressVersion).dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Printing.v$(DevExpressVersion).Core"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Printing.v$(DevExpressVersion).Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Utils.v$(DevExpressVersion)"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Utils.v$(DevExpressVersion).dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Xpf.Core.v$(DevExpressVersion)"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Xpf.Core.v$(DevExpressVersion).dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Xpf.Grid.v$(DevExpressVersion).Core"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Xpf.Grid.v$(DevExpressVersion).Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Xpf.Grid.v$(DevExpressVersion)"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Xpf.Grid.v$(DevExpressVersion).dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
+
+  <Target Name="ValidateAltiumSdk" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(AltiumInstallDir)/System/Altium.SDK.dll')" Text="Altium SDK not found. Set AltiumInstallDir (or ALTIUM_INSTALL_DIR) to your Altium Designer 26 installation." />
+    <Error Condition="!Exists('$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Xpf.Grid.v$(DevExpressVersion).dll')" Text="DevExpress $(DevExpressVersion) not found in this Altium installation. Set DevExpressVersion to its installed version." />
+  </Target>
 
   <ItemGroup>
     <Content Include="EasyEDA-Loader.Ins"><CopyToOutputDirectory>Always</CopyToOutputDirectory></Content>

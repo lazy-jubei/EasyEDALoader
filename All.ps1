@@ -37,6 +37,9 @@ param(
     [ValidateSet('Debug','Release')]
     [string]$Configuration = 'Release',
 
+    [string]$AltiumInstallDir = $env:ALTIUM_INSTALL_DIR,
+    [string]$DevExpressVersion = '25.2',
+    [string]$ExtensionsRoot,
     [switch]$SkipPlugin,
     [switch]$IncludeStandalone,
     [switch]$SkipRegistry,
@@ -49,7 +52,8 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '_Shared.ps1')
 
 # Build separate splats - each script only receives the params it declares.
-$buildArgs = @{ Configuration = $Configuration }
+$buildArgs = @{ Configuration = $Configuration; DevExpressVersion = $DevExpressVersion }
+if ($AltiumInstallDir) { $buildArgs.AltiumInstallDir = $AltiumInstallDir }
 if ($SkipPlugin)        { $buildArgs['SkipPlugin']        = $true }
 if ($IncludeStandalone) { $buildArgs['IncludeStandalone'] = $true }
 
@@ -58,6 +62,7 @@ if ($SkipPlugin)        { $packageArgs['SkipPlugin']        = $true }
 if ($IncludeStandalone) { $packageArgs['IncludeStandalone'] = $true }
 
 $deployArgs = @{}
+if ($ExtensionsRoot) { $deployArgs.ExtensionsRoot = $ExtensionsRoot }
 if ($Force)            { $deployArgs['Force']            = $true }
 if ($SkipPlugin)       { $deployArgs['SkipPlugin']       = $true }
 if ($SkipRegistry)     { $deployArgs['SkipRegistry']     = $true }

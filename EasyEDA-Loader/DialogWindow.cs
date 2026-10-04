@@ -21,6 +21,7 @@ namespace EasyEDA_Loader
     public partial class DialogWindow : Window
     {
         private EasyedaApi Api;
+        private bool _closed;
         private CancellationTokenSource cts;
         private CancellationTokenSource previewCts;
         private ObservableCollection<PartInfoViewModel> searchResults;
@@ -136,6 +137,7 @@ namespace EasyEDA_Loader
 
         private async void ResultsGrid_CurrentItemChanged(object sender, CurrentItemChangedEventArgs e)
         {
+            if (_closed) return;
             previewCts?.Cancel();
             previewCts?.Dispose();
             previewCts = new CancellationTokenSource();
@@ -162,7 +164,7 @@ namespace EasyEDA_Loader
                 _currentRoot = null;
                 saveModelButton.IsEnabled = false;
 
-                var root = await Task.Run(() => Api.GetComponentJsonAsync(partViewModel.PartInfo.Part, cancellationToken));
+                var root = await Api.GetComponentJsonAsync(partViewModel.PartInfo.Part, cancellationToken);
 
                 if (cancellationToken.IsCancellationRequested)
                     return;
@@ -186,7 +188,7 @@ namespace EasyEDA_Loader
                         var eeFootprint = _currentComponent.PackageDetail.Footprint;
                         _currentModel = eeFootprint.GetModel();
 
-                        saveModelButton.IsEnabled = _currentModel != null;
+                        if (!_closed) saveModelButton.IsEnabled = _currentModel != null;
 
                         EeFootprintContext ctx = new EeFootprintContext
                         {
@@ -211,7 +213,7 @@ namespace EasyEDA_Loader
                     {
                         try
                         {
-                            var thumbnail = await Task.Run(() => Api.LoadPngAsync(_currentComponent.Thumb, cancellationToken));
+                            var thumbnail = await Api.LoadPngAsync(_currentComponent.Thumb, cancellationToken);
                             
                             if (cancellationToken.IsCancellationRequested)
                                 return;
@@ -253,11 +255,15 @@ namespace EasyEDA_Loader
 
         public void UpdateAddButtonState()
         {
-            addToLibraryButton.IsEnabled = searchResults.Any(p => p.AddToLibrary);
+            if (_closed) return;
+            addToLibraryButton.IsEnabled = searchButton.IsEnabled && searchResults.Any(p => p.AddToLibrary);
         }
 
         private async void SearchButton_Click(object sender, RoutedEventArgs e)
         {
+            if (_closed || !searchButton.IsEnabled)
+                return;
+            var token = cts.Token;
             if (string.IsNullOrWhiteSpace(searchTextBox.Text))
             {
                 MessageBox.Show("Please enter a part number to search.", "Search Required", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -274,7 +280,8 @@ namespace EasyEDA_Loader
 
                 // Run the API call on a background thread
                 var searchText = searchTextBox.Text;
-                var results = await Task.Run(() => Api.SearchProductInfoAsync(searchText));
+                var results = await Api.SearchProductInfoAsync(searchText, token);
+                if (token.IsCancellationRequested) return;
 
                 // Add results on the UI thread
                 if (results != null && results.Count > 0)
@@ -289,14 +296,16 @@ namespace EasyEDA_Loader
                     MessageBox.Show("No results found.", "Search", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
             catch (Exception ex)
             {
+                if (_closed) return;
                 MessageBox.Show($"Search failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
                 Mouse.OverrideCursor = null;
-                searchButton.IsEnabled = true;
+                if (!_closed) searchButton.IsEnabled = true;
             }
         }
 
@@ -311,6 +320,8 @@ namespace EasyEDA_Loader
 
         private async void AddToLibraryButton_Click(object sender, RoutedEventArgs e)
         {
+            if (_closed || !addToLibraryButton.IsEnabled) return;
+            var token = cts.Token;
             var selectedParts = searchResults.Where(p => p.AddToLibrary).ToList();
             
             if (selectedParts.Count == 0)
@@ -320,7 +331,7 @@ namespace EasyEDA_Loader
             }
 
             addToLibraryButton.IsEnabled = false;
-            cancelButton.IsEnabled = false;
+            searchButton.IsEnabled = false;
 
             try
             {
@@ -332,7 +343,8 @@ namespace EasyEDA_Loader
                     var partInfo = partViewModel.PartInfo;
 
                     // Fetch component data
-                    var root = await Task.Run(() => Api.GetComponentJsonAsync(partInfo.Part, cts.Token));
+                    var root = await Api.GetComponentJsonAsync(partInfo.Part, token);
+                    if (token.IsCancellationRequested) return;
 
                     if (root?.Component != null)
                     {
@@ -354,14 +366,18 @@ namespace EasyEDA_Loader
                     }
                 }
 
+                if (SelectedComponents.Count == 0)
+                    throw new InvalidOperationException("No component data was returned for the selected parts.");
                 DialogResult = true;
                 Close();
             }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
             catch (Exception ex)
             {
+                if (_closed) return;
                 MessageBox.Show($"Failed to load component data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 addToLibraryButton.IsEnabled = true;
-                cancelButton.IsEnabled = true;
+                searchButton.IsEnabled = true;
             }
             finally
             {
@@ -377,14 +393,16 @@ namespace EasyEDA_Loader
 
         private async void SaveModelButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_currentModel == null)
+            var model = _currentModel;
+            if (_closed || model == null)
                 return;
+            var token = cts.Token;
 
             var saveFileDialog = new SaveFileDialog
             {
                 Title = "Save Model File As",
                 Filter = "STEP Files (*.step)|*.step|All Files (*.*)|*.*",
-                FileName = $"{_currentModel.Name}.step",
+                FileName = $"{model.Name}.step",
                 DefaultExt = "step"
             };
 
@@ -396,7 +414,8 @@ namespace EasyEDA_Loader
                 {
                     Mouse.OverrideCursor = Cursors.Wait;
 
-                    var modelData = await Task.Run(() => Api.LoadModelAsync(_currentModel.Uuid, cts.Token));
+                    var modelData = await Api.LoadModelAsync(model.Uuid, token);
+                    if (token.IsCancellationRequested) return;
 
                     if (modelData != null && modelData.Length > 0)
                     {
@@ -408,23 +427,28 @@ namespace EasyEDA_Loader
                         MessageBox.Show("Failed to download model data.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { }
                 catch (Exception ex)
                 {
+                    if (_closed) return;
                     MessageBox.Show($"Failed to save model: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
                 finally
                 {
                     Mouse.OverrideCursor = null;
-                    saveModelButton.IsEnabled = _currentModel != null;
+                    if (!_closed) saveModelButton.IsEnabled = _currentModel != null;
                 }
             }
         }
 
         protected override void OnClosing(CancelEventArgs e)
         {
+            base.OnClosing(e);
+            if (e.Cancel) return;
+            _closed = true;
+            Mouse.OverrideCursor = null;
             cts?.Cancel();
             previewCts?.Cancel();
-            base.OnClosing(e);
         }
 
         protected override void OnClosed(EventArgs e)

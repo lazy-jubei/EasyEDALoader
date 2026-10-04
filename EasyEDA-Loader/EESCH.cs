@@ -1,4 +1,4 @@
-﻿using EDP;
+using EDP;
 using SCH;
 using System.Windows.Forms;
 
@@ -33,6 +33,7 @@ namespace EasyEDA_Loader
             schComponent.SetState_LibReference(name);
             schComponent.GetState_SchDesignator().SetState_Text(designator);
             schComponent.SetState_ComponentDescription(desc);
+            schComponent.GetState_SchComment().SetState_Text(name);
             return schComponent;
         }
 

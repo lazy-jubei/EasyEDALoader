@@ -46,24 +46,21 @@ function Find-MSBuild {
     return $null
 }
 
-# Returns the path to the Extensions folder of the most-recently-modified
-# Altium Designer installation that has an Extensions subfolder, or $null.
-function Find-AltiumExtRoot {
+# Refuse ambiguous installations rather than deploying to the most recently modified one.
+function Find-AltiumExtRoot([string]$ExtensionsRoot) {
+    if ($ExtensionsRoot) {
+        if (-not (Test-Path (Join-Path $ExtensionsRoot 'ExtensionsRegistry.xml'))) {
+            throw "No ExtensionsRegistry.xml in $ExtensionsRoot"
+        }
+        return (Resolve-Path $ExtensionsRoot).Path
+    }
     $altiumBase = 'C:\ProgramData\Altium'
     if (-not (Test-Path $altiumBase)) { return $null }
-
-    $candidates = Get-ChildItem $altiumBase -Directory -ErrorAction SilentlyContinue |
+    $candidates = @(Get-ChildItem $altiumBase -Directory -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -match '^Altium Designer \{[0-9A-Fa-f\-]+\}$' } |
-        Where-Object { Test-Path (Join-Path $_.FullName 'Extensions') } |
-        Sort-Object LastWriteTime -Descending
-
-    if (-not $candidates) { return $null }
-
-    if (@($candidates).Count -gt 1) {
-        Write-Warn "Multiple Altium Designer installations found with an Extensions folder:"
-        $candidates | ForEach-Object { Write-Info "  $($_.Name)" }
-        Write-Info "Using most recently modified: $($candidates[0].Name)"
-    }
-
-    return Join-Path $candidates[0].FullName 'Extensions'
+        ForEach-Object { Join-Path $_.FullName 'Extensions' } |
+        Where-Object { Test-Path (Join-Path $_ 'ExtensionsRegistry.xml') })
+    if ($candidates.Count -gt 1) { throw 'Multiple Altium installations found. Select one with -ExtensionsRoot.' }
+    if ($candidates.Count -eq 0) { return $null }
+    return $candidates[0]
 }

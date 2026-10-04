@@ -29,6 +29,7 @@
 #>
 [CmdletBinding()]
 param(
+    [string]$ExtensionsRoot,
     [switch]$Force,
     [switch]$SkipPlugin,
     [switch]$SkipRegistry
@@ -52,16 +53,22 @@ $PluginVerGuid = '7042BC82-F870-462D-86AF-B158AC75C490'
 function Update-ExtensionsRegistry([string]$RegistryPath, [string]$DeployDir) {
     [xml]$xml = Get-Content $RegistryPath -Encoding UTF8
 
-    $existing = $xml.Extensions.Item | Where-Object { $_.HRID -eq $PluginHrid }
+    $existing = $xml.SelectNodes('/Extensions/Item') | Where-Object { $_.HRID -eq $PluginHrid }
+    if (@($existing).Count -gt 1) { throw 'Duplicate EasyEDA entries in the extension registry.' }
     if ($existing) {
         $existing.Path = $DeployDir
-        Write-Ok "Registry: $PluginHrid already registered - path refreshed."
+        foreach ($field in @{ Version = '1.1.0.0'; VersionGuid = $PluginVerGuid }.GetEnumerator()) {
+            $el = $existing.SelectSingleNode($field.Key)
+            if (-not $el) { $el = $xml.CreateElement($field.Key); $existing.AppendChild($el) | Out-Null }
+            $el.InnerText = $field.Value
+        }
+        Write-Ok "Registry: $PluginHrid registration updated."
     } else {
         $item = $xml.CreateElement('Item')
         $item.SetAttribute('HRID', $PluginHrid)
         $item.SetAttribute('Guid', $PluginGuid)
 
-        $oleDate = ([datetime]::Today - [datetime]'1899-12-30').TotalDays.ToString('F7')
+        $oleDate = ([datetime]::Today - [datetime]'1899-12-30').TotalDays.ToString('F7', [System.Globalization.CultureInfo]::InvariantCulture)
         $fields = [ordered]@{
             Path             = $DeployDir
             Status           = '0'
@@ -77,7 +84,7 @@ function Update-ExtensionsRegistry([string]$RegistryPath, [string]$DeployDir) {
             LongDescription  = 'Loads EasyEDA components into Altium Designer'
             SmallImage       = ''
             LargeImage       = ''
-            Version          = '1.0.0.0'
+            Version          = '1.1.0.0'
             VersionGuid      = $PluginVerGuid
             ReleasedDate     = $oleDate
             ReleaseNotes     = ''
@@ -105,9 +112,13 @@ function Update-ExtensionsRegistry([string]$RegistryPath, [string]$DeployDir) {
     $settings.Indent = $true
     $settings.IndentChars = '  '
     $settings.Encoding = New-Object System.Text.UTF8Encoding($false)  # UTF-8, no BOM
-    $writer = [System.Xml.XmlWriter]::Create($RegistryPath, $settings)
+    $temporaryPath = $RegistryPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
+    $backupPath = $RegistryPath + '.' + [guid]::NewGuid().ToString('N') + '.bak'
+    $writer = [System.Xml.XmlWriter]::Create($temporaryPath, $settings)
     try   { $xml.Save($writer) }
     finally { $writer.Flush(); $writer.Close() }
+    [System.IO.File]::Replace($temporaryPath, $RegistryPath, $backupPath)
+    Write-Info "Registry backup: $backupPath"
 }
 
 # --- Paths -------------------------------------------------------------------
@@ -130,15 +141,18 @@ if ($altiumProcs -and -not $Force) {
     Write-Ok "Altium Designer is not running."
 }
 
-if (-not $SkipPlugin -and -not (Test-Path (Join-Path $DistDir 'EasyEDA-Loader.dll'))) {
-    Write-Fail "dist\EasyEDA-Loader.dll not found next to this script."
-    Write-Fail "Ensure the dist\ folder is present alongside Deploy.ps1."
-    exit 1
+if (-not $SkipPlugin) {
+    foreach ($required in @('EasyEDA-Loader.dll', 'EasyEDA-Loader.Ins', 'EasyEDA-Loader.rcs', 'EasyEDA-Loader.deps.json', 'Newtonsoft.Json.dll')) {
+        if (-not (Test-Path (Join-Path $DistDir $required) -PathType Leaf)) { throw "Missing built artifact: $required" }
+    }
+    if (Get-ChildItem $DistDir -File | Where-Object { $_.Name -match '^(Altium\.|DevExpress\.)' }) {
+        throw 'The dist folder must not contain Altium SDK or DevExpress assemblies.'
+    }
 }
 
 # --- Find Altium extensions root ---------------------------------------------
 
-$ExtRoot = Find-AltiumExtRoot
+$ExtRoot = Find-AltiumExtRoot $ExtensionsRoot
 if (-not $ExtRoot) {
     Write-Fail "No Altium Designer Extensions folder found under C:\ProgramData\Altium\"
     Write-Fail "Verify that Altium Designer is installed."
@@ -147,32 +161,44 @@ if (-not $ExtRoot) {
 Write-Ok "Altium extensions: $ExtRoot"
 
 $DeployDir = Join-Path $ExtRoot $PluginHrid
-
+if (-not $SkipRegistry) {
+    [xml]$validateRegistry = Get-Content (Join-Path $ExtRoot 'ExtensionsRegistry.xml') -Encoding UTF8
+    if ($validateRegistry.DocumentElement.Name -ne 'Extensions') { throw 'Invalid extension registry root.' }
+    if ($validateRegistry.SelectNodes('/Extensions/Item[@HRID="EasyEDA-Loader"]').Count -gt 1) {
+        throw 'Duplicate EasyEDA entries in the extension registry.'
+    }
+}
 # --- Deploy files ------------------------------------------------------------
 
 Write-Header "Deploying to $DeployDir"
-
-New-Item -ItemType Directory -Path $DeployDir -Force | Out-Null
-
-if (-not $SkipPlugin) {
-    $pluginFiles = Get-ChildItem $DistDir -File
-    foreach ($f in $pluginFiles) {
-        Copy-Item $f.FullName -Destination (Join-Path $DeployDir $f.Name) -Force
-        Write-Ok "Plugin:  $($f.Name)"
+$stagingDir = $DeployDir + '.' + [guid]::NewGuid().ToString('N') + '.new'
+$pluginBackup = $null
+$installedNew = $false
+try {
+    if (-not $SkipPlugin) {
+        New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
+        Get-ChildItem $DistDir -File | ForEach-Object {
+            Copy-Item $_.FullName -Destination (Join-Path $stagingDir $_.Name) -Force
+        }
+        if (Test-Path $DeployDir) {
+            $pluginBackup = $DeployDir + '.' + [guid]::NewGuid().ToString('N') + '.bak'
+            Move-Item $DeployDir $pluginBackup
+            Write-Info "Plugin backup: $pluginBackup"
+        }
+        Move-Item $stagingDir $DeployDir
+        $installedNew = $true
     }
-}
-
-# --- Update ExtensionsRegistry.xml -------------------------------------------
-
-if (-not $SkipRegistry) {
-    Write-Header "Updating ExtensionsRegistry.xml"
-
-    $registryPath = Join-Path $ExtRoot 'ExtensionsRegistry.xml'
-    if (Test-Path $registryPath) {
-        Update-ExtensionsRegistry -RegistryPath $registryPath -DeployDir $DeployDir
-    } else {
-        Write-Warn "ExtensionsRegistry.xml not found at $registryPath - skipping registry update."
+    if (-not $SkipRegistry) {
+        Update-ExtensionsRegistry -RegistryPath (Join-Path $ExtRoot 'ExtensionsRegistry.xml') -DeployDir $DeployDir
     }
+} catch {
+    if ($installedNew -and (Test-Path $DeployDir)) { Remove-Item $DeployDir -Recurse -Force }
+    if ($pluginBackup -and (Test-Path $pluginBackup) -and -not (Test-Path $DeployDir)) {
+        Move-Item $pluginBackup $DeployDir
+    }
+    throw
+} finally {
+    if (Test-Path $stagingDir) { Remove-Item $stagingDir -Recurse -Force }
 }
 
 # --- Summary -----------------------------------------------------------------

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -20,9 +20,8 @@ namespace Standalone
     /// </summary>
     public partial class MainWindow : Window
     {
-        protected Task<Root>? DocumentTask;
-        protected Task<BitmapImage>? ThumbnailTask;
-        protected Task<byte[]>? ModelTask;
+        private bool busy;
+        private bool closed;
         protected EasyedaApi Api;
 
         public ComponentInfo? Component;
@@ -104,78 +103,65 @@ namespace Standalone
             }
         }
 
-        private void LoadPart(string partName)
+        private async Task LoadPartAsync(string partName, EasyedaApi.ProductInfo? info = null)
         {
             if (RawModel != null)
                 ModelView.Children.Remove(RawModel);
 
             FootprintCanvas.Children.Clear();
 
-            DocumentTask = Task.Run(() => Api.GetComponentJsonAsync(partName, cts.Token));
-            DocumentTask.Wait();
-
-            var productInfoTask = Task.Run(() => Api.GetProductInfoAsync(partName, DocumentTask.Result.Component.Owner.Uuid));
-            productInfoTask.Wait();
-
-            if(productInfoTask.Result != null)
+            var token = cts.Token;
+            var root = await Api.GetComponentJsonAsync(partName.Trim(), token);
+            token.ThrowIfCancellationRequested();
+            Component = root?.Component ?? throw new InvalidOperationException("No component data was returned.");
+            if (info == null)
             {
-                PopulateParameters(productInfoTask.Result);
+                var parts = await Api.SearchProductInfoAsync(partName, token);
+                token.ThrowIfCancellationRequested();
+                info = parts.FirstOrDefault(p => string.Equals(p.Part, partName.Trim(), StringComparison.OrdinalIgnoreCase))?.Info;
             }
-
-            Component = DocumentTask.Result.Component;
+            DetailsView.ItemsSource = null;
+            if (info != null) PopulateParameters(info);
+            SymbolCanvas.Children.Clear();
+            if (Component.Symbol == null) throw new InvalidOperationException("This part has no schematic symbol.");
 
             SymbolDrawing.DrawComponent(SymbolCanvas, Component.Symbol.Shapes);
-            SymbolCanvas.Dispatcher.InvokeAsync(() =>
+            await SymbolCanvas.Dispatcher.InvokeAsync(() =>
             {
                 _symbolHelper.FitToBoundingBox();
             }, DispatcherPriority.Loaded);
 
-            var eeFootprint = Component.PackageDetail.Footprint;
+            var eeFootprint = Component.PackageDetail?.Footprint;
 
-            Model = eeFootprint.GetModel();
+            Model = eeFootprint?.GetModel();
 
             ModelButton.IsEnabled = Model != null;
             ObjButton.IsEnabled = Model != null;
 
-            try
+            Thumbnail.Source = null;
+            if (!string.IsNullOrWhiteSpace(Component.Thumb))
             {
-                ThumbnailTask = Task.Run(() => Api.LoadPngAsync(Component.Thumb, cts.Token));
-                ThumbnailTask.ContinueWith(t =>
-                {
-                    Thumbnail.Dispatcher.Invoke(() =>
-                    {
-                        if(t.Result != null)
-                        {
-                            Thumbnail.MaxWidth = t.Result.Width;
-                            Thumbnail.MaxHeight = t.Result.Height;
-                        }
-                        Thumbnail.Source = t.Result;
-                    });
-                });
+                try { Thumbnail.Source = await Api.LoadPngAsync(Component.Thumb, token); }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception) { Thumbnail.Source = null; }
             }
-            catch (Exception)
-            {
-                Thumbnail.Source = null;
-                Thumbnail.MaxWidth = 0;
-                Thumbnail.MaxHeight = 0;
-            }
+            token.ThrowIfCancellationRequested();
+            if (eeFootprint == null) return;
 
             EeFootprintContext ctx = new()
             {
                 Box = eeFootprint.BoundingBox,
                 Layers = eeFootprint.Layers,
-                CancelToken = cts.Token,
+                CancelToken = token,
                 Exception = null,
             };
 
             byte[]? rawModelData = null;
             if(Model != null)
             {
-                ctx.RawModelTask = Task.Run(() => Api.LoadRawModelAsync(Model.Uuid, cts.Token));
-                var HeightTask = Task.Run(() => Model?.GetZOffsetFromOrigin(ctx));
-                Task.WhenAll(ctx.RawModelTask, HeightTask).Wait();
-
-                rawModelData = ctx.RawModelTask.Result;
+                rawModelData = await Api.LoadRawModelAsync(Model.Uuid, token);
+                token.ThrowIfCancellationRequested();
+                ctx.RawModelTask = Task.FromResult(rawModelData);
 
                 using var stream = new MemoryStream(rawModelData);
                 var importer = new ObjReader();
@@ -200,34 +186,65 @@ namespace Standalone
             }
 
             eeFootprint.DrawToCanvas(FootprintCanvas, ctx);
-            FootprintCanvas.Dispatcher.InvokeAsync(() =>
+            await FootprintCanvas.Dispatcher.InvokeAsync(() =>
             {
                 _footprintHelper.FitToBoundingBox();
             }, DispatcherPriority.Loaded);
         }
 
-        private void LoadButton_Click(object sender, RoutedEventArgs e)
+        private async Task RunBusyAsync(Func<Task> action)
         {
-            LoadPart(PartId.Text);
+            if (busy || closed) return;
+            busy = true;
+            SearchButton.IsEnabled = LoadButton.IsEnabled = ModelButton.IsEnabled = ObjButton.IsEnabled = false;
+            try { await action(); }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
+            catch (Exception ex) { if (!closed) MessageBox.Show(this, ex.Message, "EasyEDA Loader", MessageBoxButton.OK, MessageBoxImage.Error); }
+            finally
+            {
+                busy = false;
+                if (closed) cts.Dispose();
+                else
+                {
+                    SearchButton.IsEnabled = LoadButton.IsEnabled = true;
+                    ModelButton.IsEnabled = ObjButton.IsEnabled = Model != null;
+                }
+            }
         }
 
-        private void ModelButton_Click(object sender, RoutedEventArgs e)
+        protected override void OnClosed(EventArgs e)
         {
-            if(Model != null)
-            {
-                ModelTask = Task.Run(() => Api.LoadModelAsync(Model.Uuid, cts.Token));
-                ModelTask.Wait();
-                SaveModelToFile(Model, ModelTask.Result);
-            }
+            closed = true;
+            cts.Cancel();
+            if (!busy) cts.Dispose();
+            base.OnClosed(e);
         }
-        private void ObjModelButton_Click(object sender, RoutedEventArgs e)
+
+        private async void LoadButton_Click(object sender, RoutedEventArgs e)
+            => await RunBusyAsync(() => LoadPartAsync(PartId.Text));
+
+        private async void ModelButton_Click(object sender, RoutedEventArgs e)
         {
-            if (Model != null)
-            {
-                ModelTask = Task.Run(() => Api.LoadRawModelAsync(Model.Uuid, cts.Token));
-                ModelTask.Wait();
-                SaveRawModelToFile(Model, ModelTask.Result);
-            }
+            var model = Model;
+            if (model == null) return;
+            await RunBusyAsync(async () => {
+                var token = cts.Token;
+                var data = await Api.LoadModelAsync(model.Uuid, token);
+                token.ThrowIfCancellationRequested();
+                SaveModelToFile(model, data);
+            });
+        }
+
+        private async void ObjModelButton_Click(object sender, RoutedEventArgs e)
+        {
+            var model = Model;
+            if (model == null) return;
+            await RunBusyAsync(async () => {
+                var token = cts.Token;
+                var data = await Api.LoadRawModelAsync(model.Uuid, token);
+                token.ThrowIfCancellationRequested();
+                SaveRawModelToFile(model, data);
+            });
         }
 
         private void PopulateSearchBox(List<EasyedaApi.PartInfo> parts)
@@ -238,16 +255,15 @@ namespace Standalone
             DescColumn.Width = Double.NaN;
         }
 
-        private void SearchButton_Click(object sender, RoutedEventArgs e)
+        private async void SearchButton_Click(object sender, RoutedEventArgs e)
         {
-            var api = new EasyedaApi();
-
             string partName = PartId.Text;
-
-            var productInfo = Task.Run(() => Api.SearchProductInfoAsync(partName));
-            productInfo.Wait();
-
-            PopulateSearchBox(productInfo.Result);
+            await RunBusyAsync(async () => {
+                var token = cts.Token;
+                var parts = await Api.SearchProductInfoAsync(partName, token);
+                token.ThrowIfCancellationRequested();
+                PopulateSearchBox(parts);
+            });
         }
 
         private void PopulateParameters(EasyedaApi.ProductInfo productInfo)
@@ -265,11 +281,11 @@ namespace Standalone
             }
         }
 
-        private void SearchBox_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private async void SearchBox_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (SearchBox.SelectedItem is EasyedaApi.PartInfo selectedItem)
             {
-                LoadPart(selectedItem.Part);
+                await RunBusyAsync(() => LoadPartAsync(selectedItem.Part, selectedItem.Info));
             }
         }
     }

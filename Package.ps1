@@ -41,7 +41,7 @@ $ErrorActionPreference = 'Stop'
 $PluginDir     = Join-Path $PSScriptRoot 'EasyEDA-Loader'
 $StandaloneDir = Join-Path $PSScriptRoot 'Standalone'
 $PluginBin     = Join-Path $PluginDir "bin\$Configuration"
-$StandaloneBin = Join-Path $StandaloneDir "bin\$Configuration\net48"
+$StandaloneBin = Join-Path $StandaloneDir "bin\$Configuration\net8.0-windows\win-x64"
 $DistDir       = Join-Path $PSScriptRoot 'dist'
 
 Write-Header "Packaging into dist\"
@@ -77,6 +77,7 @@ if (-not $SkipPlugin) {
         $_.Name -eq 'EasyEDA-Loader.Ins' -or
         $_.Name -eq 'EasyEDA-Loader.rcs' -or
         $_.Name -eq 'EasyEDA-Loader.dll.config' -or
+        $_.Name -eq 'EasyEDA-Loader.deps.json' -or
         ($_.Extension -eq '.dll' -and $_.Name -notmatch $excludePattern -and $_.Name -ne 'EasyEDA-Loader.dll') -or
         ($_.Extension -eq '.xml' -and $_.Name -like 'Newtonsoft.*')
     }
@@ -102,8 +103,10 @@ if ($IncludeStandalone) {
 
     $standaloneFiles = Get-ChildItem $StandaloneBin -File -Recurse
     foreach ($f in $standaloneFiles) {
-        $dstName = $f.Name
-        Copy-Item $f.FullName -Destination (Join-Path $StandaloneDistDir $dstName) -Force
+        $relativePath = $f.FullName.Substring($StandaloneBin.Length).TrimStart([char[]]'\/')
+        $destination = Join-Path $StandaloneDistDir $relativePath
+        New-Item -ItemType Directory -Path (Split-Path $destination) -Force | Out-Null
+        Copy-Item $f.FullName -Destination $destination -Force
     }
     Write-Ok "Standalone: $($standaloneFiles.Count) file(s) -> dist\standalone\"
 }
@@ -116,3 +119,10 @@ Write-Host "  Dist : $DistDir" -ForegroundColor White
 Write-Host ""
 Write-Info "Run .\Deploy.ps1 to install into Altium Designer."
 Write-Host ""
+
+# Ship every deployment dependency beside dist/, including the shared helper.
+$releaseDir = Join-Path $PSScriptRoot 'release'
+New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+$archive = Join-Path $releaseDir 'EasyEDALoader-ad26.zip'
+Compress-Archive -Path $DistDir, (Join-Path $PSScriptRoot 'Deploy.ps1'), (Join-Path $PSScriptRoot '_Shared.ps1'), (Join-Path $PSScriptRoot 'LICENSE') -DestinationPath $archive -Force
+Write-Ok "Release archive: $archive"

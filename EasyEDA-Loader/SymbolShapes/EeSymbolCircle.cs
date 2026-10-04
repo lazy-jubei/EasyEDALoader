@@ -9,15 +9,15 @@ namespace EasyEDA_Loader
             var parts = data.Split(new[] { "~" }, StringSplitOptions.None);
             return new EeSymbolCircle
             {
-                CenterX = double.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture),
-                CenterY = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture),
-                Radius = double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture),
-                StrokeColor = parts[3],
-                StrokeWidth = parts[4],
-                StrokeStyle = parts[5],
-                FillColor = parts[6],
-                Id = parts[7],
-                IsLocked = ParseBoolean(parts[8])
+                CenterX = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture),
+                CenterY = double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture),
+                Radius = double.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture),
+                StrokeColor = parts[4],
+                StrokeWidth = parts[5],
+                StrokeStyle = parts[6],
+                FillColor = parts[7],
+                Id = parts[8],
+                IsLocked = ParseBoolean(parts[9])
             };
         }
 

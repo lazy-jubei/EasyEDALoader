@@ -270,10 +270,10 @@ namespace EasyEDA_Loader
 
             List<(double x, double y)> offsets = new()
             {
-                (halfWidthMargin * gridSize, 0),
+                (halfWidthMargin * gridSize + gridSize, 0),
                 (0, halfHeightMargin * gridSize + gridSize),
                 (altiumRect.Width, halfHeightMargin * gridSize + gridSize),
-                (halfWidthMargin * gridSize, altiumRect.Height)
+                (halfWidthMargin * gridSize + gridSize, altiumRect.Height)
             };
 
             List<AltiumSymbolPin> pins = new();
@@ -343,7 +343,8 @@ namespace EasyEDA_Loader
             {
                 EESCH.CreatePin(schLib, component, pin.X, rect.Height - pin.Y, pin.Designator, pin.Name, pin.Orientation, pin.Length, pin.PinType, pin.ShowName, null);
             }
-            EESCH.AssignFootprint(component, pcbLibraryPath, package, "");
+            if (!string.IsNullOrWhiteSpace(package))
+                EESCH.AssignFootprint(component, pcbLibraryPath, package, "");
             schLib.AddSchComponent(component);
         }
     }

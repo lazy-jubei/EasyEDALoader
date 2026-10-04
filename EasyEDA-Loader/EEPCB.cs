@@ -1,4 +1,4 @@
-﻿using PCB;
+using PCB;
 
 using System;
 
@@ -22,7 +22,6 @@ namespace EasyEDA_Loader
             var uid = pcbLib.GetUniqueCompName(name);
             footprint.SetState_Pattern(uid);
             footprint.SetState_Description(description);
-            AltiumApi.GlobalVars.PCBServer.PostProcess();
             return footprint;
         }
 

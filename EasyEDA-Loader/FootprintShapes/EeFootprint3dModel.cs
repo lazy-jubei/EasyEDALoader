@@ -69,7 +69,7 @@ namespace EasyEDA_Loader
         {
             double? minZ = null;
 
-            byte[] model = ctx.RawModelTask != null ? await ctx.RawModelTask : await new EasyedaApi().LoadRawModelAsync(Uuid, ctx.CancelToken);
+            byte[] model = ctx.RawModelTask != null ? await ctx.RawModelTask.ConfigureAwait(false) : await new EasyedaApi().LoadRawModelAsync(Uuid, ctx.CancelToken).ConfigureAwait(false);
 
             using var reader = new StringReader(Encoding.UTF8.GetString(model));
 
@@ -91,18 +91,19 @@ namespace EasyEDA_Loader
             if (!minZ.HasValue)
                 throw new InvalidDataException("No vertices found in OBJ file.");
 
-            return Math.Abs(minZ.Value);
+            return -minZ.Value;
         }
 
         public override bool AddToComponent(IPCB_LibComponent c, EeFootprintContext ctx)
         {
+            string temp = null;
             try
             {
                 var modelTask = ctx.ModelTask ?? Task.Run(() => new EasyedaApi().LoadModelAsync(Uuid, ctx.CancelToken));
                 var heightTask = Task.Run(() => GetZOffsetFromOrigin(ctx));
-                Task.WhenAll(modelTask, heightTask).Wait();
+                Task.WhenAll(modelTask, heightTask).GetAwaiter().GetResult();
 
-                string temp = Path.Combine(Path.GetTempPath(), $"{Uuid}.step");
+                temp = Path.Combine(Path.GetTempPath(), $"easyeda-{Guid.NewGuid():N}.step");
                 File.WriteAllBytes(temp, modelTask.Result);
 
                 // The translation is not quite right, the values shown in "3D Model Manager" are available from the Search API as "3D Model Transform"
@@ -114,12 +115,16 @@ namespace EasyEDA_Loader
                 var body = EEPCB.CreateComponentBody(c, temp, Rotation.X, Rotation.Y, Rotation.Z, ConvertX(Translation.X, ctx), ConvertY(Translation.Y, ctx), Translation.Z + heightTask.Result);
                 EEPCB.AddToPCB(c, body);
 
-                File.Delete(temp);
             }
             catch (Exception ex)
             {
                 if (ctx.Exception != null && !ctx.Exception(ex))
                     return false;
+            }
+            finally
+            {
+                if (temp != null && File.Exists(temp))
+                    File.Delete(temp);
             }
 
             return true;
