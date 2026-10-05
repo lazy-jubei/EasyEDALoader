@@ -133,6 +133,9 @@ $releaseDir = Join-Path $PSScriptRoot 'release'
 New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 $archive = Join-Path $releaseDir "EasyEDALoader-ad$AltiumVersion.zip"
 $archiveFiles = @($DistDir, (Join-Path $PSScriptRoot 'Deploy.ps1'), (Join-Path $PSScriptRoot '_Shared.ps1'), (Join-Path $PSScriptRoot 'LICENSE'))
-if ($AltiumVersion -eq '17') { $archiveFiles += Join-Path $PSScriptRoot 'AD17.md' }
+if ($AltiumVersion -eq '17') {
+    $archiveFiles += Join-Path $PSScriptRoot 'AD17.md'
+    $archiveFiles += Join-Path $PSScriptRoot 'ManufacturerPartSearch.md'
+}
 Compress-Archive -Path $archiveFiles -DestinationPath $archive -Force
 Write-Ok "Release archive: $archive"

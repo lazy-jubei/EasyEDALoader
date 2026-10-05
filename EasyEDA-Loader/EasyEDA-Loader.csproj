@@ -30,6 +30,8 @@
     <Reference Include="System.Net.Http" Condition="'$(AltiumVersion)' == '17'" />
     <Reference Include="System.Numerics" Condition="'$(AltiumVersion)' == '17'" />
     <Compile Remove="BaseForm.cs" Condition="'$(AltiumVersion)' == '17'" />
+    <Compile Remove="PartSearch/**/*.cs" Condition="'$(AltiumVersion)' != '17'" />
+    <Page Remove="PartSearch/**/*.xaml" Condition="'$(AltiumVersion)' != '17'" />
   </ItemGroup>
 
   <ItemGroup>
@@ -57,8 +59,10 @@
   </Target>
 
   <ItemGroup>
-    <Content Include="EasyEDA-Loader.Ins"><CopyToOutputDirectory>Always</CopyToOutputDirectory></Content>
-    <Content Include="EasyEDA-Loader.rcs"><CopyToOutputDirectory>Always</CopyToOutputDirectory></Content>
+    <Content Include="EasyEDA-Loader.Ins" Condition="'$(AltiumVersion)' != '17'"><CopyToOutputDirectory>Always</CopyToOutputDirectory></Content>
+    <Content Include="EasyEDA-Loader.rcs" Condition="'$(AltiumVersion)' != '17'"><CopyToOutputDirectory>Always</CopyToOutputDirectory></Content>
+    <Content Include="PartSearch/EasyEDA-Loader.ad17.Ins" Condition="'$(AltiumVersion)' == '17'"><TargetPath>EasyEDA-Loader.Ins</TargetPath><CopyToOutputDirectory>Always</CopyToOutputDirectory></Content>
+    <Content Include="PartSearch/EasyEDA-Loader.ad17.rcs" Condition="'$(AltiumVersion)' == '17'"><TargetPath>EasyEDA-Loader.rcs</TargetPath><CopyToOutputDirectory>Always</CopyToOutputDirectory></Content>
   </ItemGroup>
 
   <ItemGroup>

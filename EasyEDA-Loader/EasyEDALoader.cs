@@ -23,9 +23,44 @@ namespace EasyEDA_Loader
 
         protected override IServerDocument NewDocumentInstance(string argKind, string argFileName) => (IServerDocument)null;
 
-        protected override void InitializeCommands() => RegisterCommand("EasyEDARun", new CommandProc(Run));
+        protected override void InitializeCommands()
+        {
+            RegisterCommand("EasyEDARun", new CommandProc(Run));
+#if ALTIUM17
+            RegisterCommand("ManufacturerPartSearch", new CommandProc(RunManufacturerPartSearch), "Manufacturer Part Search Error");
+#endif
+        }
 
-        private void RegisterCommand(string argCommandId, CommandProc commandProc) => ((DXP.CommandLauncher)CommandLauncher).RegisterCommand(argCommandId, (CommandProc)((IServerDocumentView view, ref string parameters) =>
+#if ALTIUM17
+        private void RunManufacturerPartSearch(IServerDocumentView context, ref string parameters)
+        {
+            if (noGUIMode) throw new InvalidOperationException("Manufacturer Part Search requires Altium's graphical interface.");
+            var currentDocument = AltiumApi.GlobalVars.Client.GetCurrentView()?.GetOwnerDocument();
+            try
+            {
+                bool canPlace = string.Equals(currentDocument?.GetKind(), "SCH", StringComparison.OrdinalIgnoreCase);
+                var window = new PartSearch.PartSearchWindow(canPlace);
+                if (window.ShowDialog() != true || window.SelectedPart == null || window.SelectedModel == null) return;
+                var imported = PartSearch.SupplierLibraryImporter.Import(window.SelectedPart, window.SelectedOffer, window.SelectedModel);
+                if (window.PlaceInSchematic)
+                {
+                    if (!canPlace) throw new InvalidOperationException("Open a schematic before placing a component.");
+                    AltiumApi.GlobalVars.Client.ShowDocument(currentDocument);
+                    var manager = EDP.Utils.LoadIntegratedLibraryManager()
+                        ?? throw new InvalidOperationException("Altium's library manager is unavailable.");
+                    // The library manager requires explicit placement coordinates.
+                    string placement = "Location.X=0|Location.Y=0|Orientation=0|PartID=" +
+                        imported.PartId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    if (!manager.PlaceLibraryComponent(imported.Reference, imported.LibraryPath, placement))
+                        throw new InvalidOperationException("Altium could not place the component. The imported component remains in ManufacturerParts.schlib.");
+                    AltiumApi.GlobalVars.SCHServer.GetCurrentSchDocument()?.GraphicallyInvalidate();
+                }
+            }
+            finally { if (currentDocument != null) AltiumApi.GlobalVars.Client.ShowDocument(currentDocument); }
+        }
+#endif
+
+        private void RegisterCommand(string argCommandId, CommandProc commandProc, string errorTitle = "EasyEDA Loader Error") => ((DXP.CommandLauncher)CommandLauncher).RegisterCommand(argCommandId, (CommandProc)((IServerDocumentView view, ref string parameters) =>
         {
             try
             {
@@ -39,7 +74,7 @@ namespace EasyEDA_Loader
                 }
                 else
                 {
-                    int num = (int)MessageBox.Show(ex.Message, "EasyEDA Loader Error", MessageBoxButtons.OK, MessageBoxIcon.Hand);
+                    int num = (int)MessageBox.Show(ex.Message, errorTitle, MessageBoxButtons.OK, MessageBoxIcon.Hand);
                 }
             }
         }));

@@ -4,6 +4,8 @@ Import EasyEDA/LCSC symbols, footprints and 3D models into Altium Designer.
 
 This local fork of [expired6978/EasyEDALoader](https://github.com/expired6978/EasyEDALoader) supports separate builds for **AD26** (.NET 8/x64) and **AD17** (.NET Framework 4.8/x86). AD26 imports have been verified; AD17 is compiled but awaits runtime testing. See [AD26.md](AD26.md) and [AD17.md](AD17.md).
 
+AD17 also includes a [Manufacturer Part Search prototype](ManufacturerPartSearch.md) using suppliers configured in Altium and its library browser.
+
 ## Usage
 
 With a schematic active, open **EasyEDA Loader**, search for an LCSC part number such as `C2040`, tick the part, then choose **Add to Library**. Libraries are saved in `Documents/AltiumEE`. Disable **Place in schematic** to import without placing a component in the active sheet.
