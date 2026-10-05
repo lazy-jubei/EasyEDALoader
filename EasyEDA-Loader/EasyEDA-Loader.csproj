@@ -1,15 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework Condition="'$(AltiumVersion)' == '17'">net48</TargetFramework>
+    <TargetFramework Condition="'$(AltiumVersion)' != '17'">net8.0-windows</TargetFramework>
     <OutputType>Library</OutputType>
     <AssemblyName>EasyEDA-Loader</AssemblyName>
     <RootNamespace>EasyEDA_Loader</RootNamespace>
     <LangVersion>12.0</LangVersion>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <PlatformTarget>x64</PlatformTarget>
+    <PlatformTarget Condition="'$(AltiumVersion)' == '17'">x86</PlatformTarget>
+    <PlatformTarget Condition="'$(AltiumVersion)' != '17'">x64</PlatformTarget>
+    <DefineConstants Condition="'$(AltiumVersion)' == '17'">$(DefineConstants);ALTIUM17</DefineConstants>
     <AltiumInstallDir Condition="'$(AltiumInstallDir)' == ''">$(ALTIUM_INSTALL_DIR)</AltiumInstallDir>
+    <AltiumInstallDir Condition="'$(AltiumInstallDir)' == '' and '$(AltiumVersion)' == '17'">C:\Program Files (x86)\Altium\AD17</AltiumInstallDir>
     <AltiumInstallDir Condition="'$(AltiumInstallDir)' == ''">C:\Program Files\Altium\AD26</AltiumInstallDir>
+    <DevExpressVersion Condition="'$(DevExpressVersion)' == '' and '$(AltiumVersion)' == '17'">15.2</DevExpressVersion>
     <DevExpressVersion Condition="'$(DevExpressVersion)' == ''">25.2</DevExpressVersion>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
@@ -21,25 +26,34 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" Condition="'$(AltiumVersion)' == '17'" />
+    <Reference Include="System.Net.Http" Condition="'$(AltiumVersion)' == '17'" />
+    <Reference Include="System.Numerics" Condition="'$(AltiumVersion)' == '17'" />
+    <Compile Remove="BaseForm.cs" Condition="'$(AltiumVersion)' == '17'" />
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="Altium.Controls"><HintPath>$(AltiumInstallDir)/System/Altium.Controls.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Altium.Controls" Condition="'$(AltiumVersion)' != '17'"><HintPath>$(AltiumInstallDir)/System/Altium.Controls.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Altium.SDK"><HintPath>$(AltiumInstallDir)/System/Altium.SDK.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Altium.SDK.Interfaces"><HintPath>$(AltiumInstallDir)/System/Altium.SDK.Interfaces.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="DevExpress.Data.v$(DevExpressVersion)"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Data.v$(DevExpressVersion).dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="DevExpress.Data.Desktop.v$(DevExpressVersion)"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Data.Desktop.v$(DevExpressVersion).dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Data.Desktop.v$(DevExpressVersion)" Condition="'$(AltiumVersion)' != '17'"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Data.Desktop.v$(DevExpressVersion).dll</HintPath><Private>false</Private></Reference>
     <Reference Include="DevExpress.Mvvm.v$(DevExpressVersion)"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Mvvm.v$(DevExpressVersion).dll</HintPath><Private>false</Private></Reference>
     <Reference Include="DevExpress.Printing.v$(DevExpressVersion).Core"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Printing.v$(DevExpressVersion).Core.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="DevExpress.Utils.v$(DevExpressVersion)"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Utils.v$(DevExpressVersion).dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Utils.v$(DevExpressVersion)" Condition="'$(AltiumVersion)' != '17'"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Utils.v$(DevExpressVersion).dll</HintPath><Private>false</Private></Reference>
     <Reference Include="DevExpress.Xpf.Core.v$(DevExpressVersion)"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Xpf.Core.v$(DevExpressVersion).dll</HintPath><Private>false</Private></Reference>
     <Reference Include="DevExpress.Xpf.Grid.v$(DevExpressVersion).Core"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Xpf.Grid.v$(DevExpressVersion).Core.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="DevExpress.Xpf.Grid.v$(DevExpressVersion)"><HintPath>$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Xpf.Grid.v$(DevExpressVersion).dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 
   <Target Name="ValidateAltiumSdk" BeforeTargets="ResolveAssemblyReferences">
-    <Error Condition="!Exists('$(AltiumInstallDir)/System/Altium.SDK.dll')" Text="Altium SDK not found. Set AltiumInstallDir (or ALTIUM_INSTALL_DIR) to your Altium Designer 26 installation." />
+    <Error Condition="'$(AltiumVersion)' != '17' and '$(AltiumVersion)' != '26'" Text="AltiumVersion must be 17 or 26." />
+    <Error Condition="!Exists('$(AltiumInstallDir)/System/Altium.SDK.dll')" Text="Altium SDK not found. Set AltiumInstallDir (or ALTIUM_INSTALL_DIR) to your Altium Designer $(AltiumVersion) installation." />
     <Error Condition="!Exists('$(AltiumInstallDir)/System/DotNet/DevExpress.Wpf/DevExpress.Xpf.Grid.v$(DevExpressVersion).dll')" Text="DevExpress $(DevExpressVersion) not found in this Altium installation. Set DevExpressVersion to its installed version." />
+  </Target>
+
+  <Target Name="WriteAltiumTarget" AfterTargets="Build">
+    <WriteLinesToFile File="$(TargetDir)EasyEDA-Loader.target.json" Lines="{&quot;altiumVersion&quot;: &quot;$(AltiumVersion)&quot;, &quot;framework&quot;: &quot;$(TargetFramework)&quot;, &quot;architecture&quot;: &quot;$(PlatformTarget)&quot;}" Overwrite="true" />
   </Target>
 
   <ItemGroup>

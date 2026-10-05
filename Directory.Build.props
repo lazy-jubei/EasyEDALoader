@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <AltiumVersion Condition="'$(AltiumVersion)' == ''">26</AltiumVersion>
+    <!-- Set this before the SDK imports so AD17 restore and WPF intermediates are isolated. -->
+    <BaseIntermediateOutputPath Condition="'$(AltiumVersion)' == '17'">obj/ad17/</BaseIntermediateOutputPath>
+    <BaseOutputPath Condition="'$(AltiumVersion)' == '17'">bin/ad17/</BaseOutputPath>
+    <!-- Exclude both targets' generated sources when switching between them. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

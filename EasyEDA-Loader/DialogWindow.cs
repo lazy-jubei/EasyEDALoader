@@ -12,8 +12,10 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using DevExpress.Xpf.Grid;
+#if !ALTIUM17
 using DevExpress.LookAndFeel;
 using DevExpress.Skins;
+#endif
 using Microsoft.Win32;
 
 namespace EasyEDA_Loader
@@ -72,6 +74,11 @@ namespace EasyEDA_Loader
 
         private void ApplyAltiumTheme()
         {
+#if ALTIUM17
+            // AD17's WPF libraries do not include the newer WinForms skin API.
+            mainGrid.Background = SystemColors.WindowBrush;
+            ApplyColorToTextBlocks(mainGrid, SystemColors.WindowTextBrush);
+#else
             try
             {
                 // Get Altium's skin colors
@@ -107,6 +114,7 @@ namespace EasyEDA_Loader
                 var textBrush = new SolidColorBrush(Color.FromRgb(241, 241, 241));
                 ApplyColorToTextBlocks(mainGrid, textBrush);
             }
+#endif
         }
 
         private void ApplyColorToTextBlocks(System.Windows.DependencyObject parent, SolidColorBrush brush)

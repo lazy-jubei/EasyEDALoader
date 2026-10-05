@@ -21,7 +21,7 @@ try {
     & (Join-Path $repo 'Deploy.ps1') -ExtensionsRoot $extensions -Force
     [xml]$xml = Get-Content $registry
     if ($xml.SelectNodes('/Extensions/Item[@HRID="EasyEDA-Loader"]').Count -ne 1) { throw 'Duplicate registry entry.' }
-    if ($xml.SelectSingleNode('/Extensions/Item[@HRID="EasyEDA-Loader"]').Version -ne '1.1.0.0') { throw 'Existing registry version was not updated.' }
+    if ($xml.SelectSingleNode('/Extensions/Item[@HRID="EasyEDA-Loader"]').Version -ne '1.2.0.0') { throw 'Existing registry version was not updated.' }
     if (Test-Path $stale) { throw 'Stale dependencies were not removed.' }
     '<invalid' | Set-Content $registry
     $before = (Get-FileHash (Join-Path $extensions 'EasyEDA-Loader/EasyEDA-Loader.dll')).Hash

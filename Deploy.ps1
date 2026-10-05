@@ -29,6 +29,7 @@
 #>
 [CmdletBinding()]
 param(
+    [ValidateSet('17','26')][string]$AltiumVersion = '26',
     [string]$ExtensionsRoot,
     [switch]$Force,
     [switch]$SkipPlugin,
@@ -57,7 +58,7 @@ function Update-ExtensionsRegistry([string]$RegistryPath, [string]$DeployDir) {
     if (@($existing).Count -gt 1) { throw 'Duplicate EasyEDA entries in the extension registry.' }
     if ($existing) {
         $existing.Path = $DeployDir
-        foreach ($field in @{ Version = '1.1.0.0'; VersionGuid = $PluginVerGuid }.GetEnumerator()) {
+        foreach ($field in @{ Version = '1.2.0.0'; VersionGuid = $PluginVerGuid }.GetEnumerator()) {
             $el = $existing.SelectSingleNode($field.Key)
             if (-not $el) { $el = $xml.CreateElement($field.Key); $existing.AppendChild($el) | Out-Null }
             $el.InnerText = $field.Value
@@ -84,7 +85,7 @@ function Update-ExtensionsRegistry([string]$RegistryPath, [string]$DeployDir) {
             LongDescription  = 'Loads EasyEDA components into Altium Designer'
             SmallImage       = ''
             LargeImage       = ''
-            Version          = '1.1.0.0'
+            Version          = '1.2.0.0'
             VersionGuid      = $PluginVerGuid
             ReleasedDate     = $oleDate
             ReleaseNotes     = ''
@@ -124,12 +125,13 @@ function Update-ExtensionsRegistry([string]$RegistryPath, [string]$DeployDir) {
 # --- Paths -------------------------------------------------------------------
 
 $DistDir = Join-Path $PSScriptRoot 'dist'
+if ($AltiumVersion -eq '17') { $DistDir = Join-Path $PSScriptRoot 'dist-ad17' }
 
 # --- Pre-flight checks -------------------------------------------------------
 
 Write-Header "Pre-flight checks"
 
-$altiumProcs = Get-Process -Name 'X2' -ErrorAction SilentlyContinue
+$altiumProcs = Get-Process -Name 'X2','DXP' -ErrorAction SilentlyContinue
 if ($altiumProcs -and -not $Force) {
     Write-Warn "Altium Designer is currently running."
     Write-Warn "The deployed plugin will only take effect after restarting Altium."
@@ -142,9 +144,12 @@ if ($altiumProcs -and -not $Force) {
 }
 
 if (-not $SkipPlugin) {
-    foreach ($required in @('EasyEDA-Loader.dll', 'EasyEDA-Loader.Ins', 'EasyEDA-Loader.rcs', 'EasyEDA-Loader.deps.json', 'Newtonsoft.Json.dll')) {
+    $requiredFiles = @('EasyEDA-Loader.dll', 'EasyEDA-Loader.Ins', 'EasyEDA-Loader.rcs', 'Newtonsoft.Json.dll')
+    if ($AltiumVersion -eq '26') { $requiredFiles += 'EasyEDA-Loader.deps.json' }
+    foreach ($required in $requiredFiles) {
         if (-not (Test-Path (Join-Path $DistDir $required) -PathType Leaf)) { throw "Missing built artifact: $required" }
     }
+    Assert-AltiumTarget $DistDir $AltiumVersion
     if (Get-ChildItem $DistDir -File | Where-Object { $_.Name -match '^(Altium\.|DevExpress\.)' }) {
         throw 'The dist folder must not contain Altium SDK or DevExpress assemblies.'
     }

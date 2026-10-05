@@ -1,4 +1,11 @@
 using PCB;
+#if ALTIUM17
+using PcbPad = PCB.IPCB_Pad2;
+using PcbText = PCB.IPCB_Text;
+#else
+using PcbPad = PCB.IPCB_Pad4;
+using PcbText = PCB.IPCB_Text3;
+#endif
 
 using System;
 
@@ -85,9 +92,9 @@ namespace EasyEDA_Loader
             return circle;
         }
 
-        public static IPCB_Pad4 CreatePTH(IPCB_LibComponent c, TLayerConstant layer, TExtendedHoleType holeType, TShape padShape, double x, double y, double height, double width, double holeSize, string name, bool plated, double rotation)
+        public static PcbPad CreatePTH(IPCB_LibComponent c, TLayerConstant layer, TExtendedHoleType holeType, TShape padShape, double x, double y, double height, double width, double holeSize, string name, bool plated, double rotation)
         {
-            var pth = AltiumApi.GlobalVars.PCBServer.PCBObjectFactory(TObjectId.ePadObject, TDimensionKind.eNoDimension, TObjectCreationMode.eCreate_Default) as IPCB_Pad4;
+            var pth = AltiumApi.GlobalVars.PCBServer.PCBObjectFactory(TObjectId.ePadObject, TDimensionKind.eNoDimension, TObjectCreationMode.eCreate_Default) as PcbPad;
             if (pth == null) return null;
             pth.SetState_Mode(TPadMode.ePadMode_Simple);
             pth.SetState_Name(name);
@@ -117,9 +124,9 @@ namespace EasyEDA_Loader
             return via;
         }
 
-        public static IPCB_Text3 CreateText(IPCB_LibComponent c, TLayerConstant layer, string text, double x, double y, double width, double size, double rotation)
+        public static PcbText CreateText(IPCB_LibComponent c, TLayerConstant layer, string text, double x, double y, double width, double size, double rotation)
         {
-            var textObject = AltiumApi.GlobalVars.PCBServer.PCBObjectFactory(TObjectId.eTextObject, TDimensionKind.eNoDimension, TObjectCreationMode.eCreate_Default) as IPCB_Text3;
+            var textObject = AltiumApi.GlobalVars.PCBServer.PCBObjectFactory(TObjectId.eTextObject, TDimensionKind.eNoDimension, TObjectCreationMode.eCreate_Default) as PcbText;
             if (textObject == null) return null;
             textObject.SetState_V7Layer(new V7_Layer(layer));
             textObject.SetState_XLocation(AltiumApi.MmToCoord(x) + c.GetState_XLocation());

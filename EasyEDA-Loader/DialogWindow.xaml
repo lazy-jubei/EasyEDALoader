@@ -90,7 +90,6 @@
                                 FieldName="AddToLibrary" 
                                 Width="40"
                                 MinWidth="40"
-                                MaxWidth="40"
                                 AllowResizing="False"
                                 FixedWidth="True">
                     <dxg:GridColumn.CellTemplate>
@@ -106,7 +105,6 @@
                                 FieldName="HasFootprint" 
                                 Width="40"
                                 MinWidth="40"
-                                MaxWidth="40"
                                 AllowResizing="False"
                                 FixedWidth="True">
                     <dxg:GridColumn.CellTemplate>
@@ -123,7 +121,6 @@
                                 FieldName="Has3d" 
                                 Width="40"
                                 MinWidth="40"
-                                MaxWidth="40"
                                 AllowResizing="False"
                                 FixedWidth="True">
                     <dxg:GridColumn.CellTemplate>

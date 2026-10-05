@@ -27,11 +27,17 @@ namespace EasyEDA_Loader
 
         private static HttpClient CreateHttpClient()
         {
-            var client = new HttpClient(new HttpClientHandler
+            var handler = new HttpClientHandler
             {
                 AutomaticDecompression = System.Net.DecompressionMethods.GZip |
-                    System.Net.DecompressionMethods.Deflate | System.Net.DecompressionMethods.Brotli
-            }) { Timeout = TimeSpan.FromSeconds(30) };
+                    System.Net.DecompressionMethods.Deflate
+            };
+#if ALTIUM17
+            handler.SslProtocols = System.Security.Authentication.SslProtocols.Tls12;
+#else
+            handler.AutomaticDecompression |= System.Net.DecompressionMethods.Brotli;
+#endif
+            var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
             client.DefaultRequestHeaders.Add("Accept", "application/json, text/javascript, */*; q=0.01");
             client.DefaultRequestHeaders.Add("User-Agent", UserAgent);
             return client;

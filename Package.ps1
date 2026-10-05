@@ -16,18 +16,19 @@
 .PARAMETER SkipPlugin
     Skip packaging the plugin files.
 
-.PARAMETER SkipStandalone
-    Skip packaging the Standalone app.
+.PARAMETER IncludeStandalone
+    Include the Standalone app (AD26 only).
 
 .EXAMPLE
     .\Package.ps1
     .\Package.ps1 -Configuration Debug
-    .\Package.ps1 -SkipStandalone
+    .\Package.ps1 -AltiumVersion 17
 #>
 [CmdletBinding()]
 param(
     [ValidateSet('Debug','Release')]
     [string]$Configuration = 'Release',
+    [ValidateSet('17','26')][string]$AltiumVersion = '26',
 
     [switch]$SkipPlugin,
     [switch]$IncludeStandalone
@@ -43,8 +44,13 @@ $StandaloneDir = Join-Path $PSScriptRoot 'Standalone'
 $PluginBin     = Join-Path $PluginDir "bin\$Configuration"
 $StandaloneBin = Join-Path $StandaloneDir "bin\$Configuration\net8.0-windows\win-x64"
 $DistDir       = Join-Path $PSScriptRoot 'dist'
+if ($AltiumVersion -eq '17') {
+    if ($IncludeStandalone) { throw 'The standalone preview app supports AD26 only.' }
+    $PluginBin = Join-Path $PluginDir "bin/ad17/$Configuration"
+    $DistDir = Join-Path $PSScriptRoot 'dist-ad17'
+}
 
-Write-Header "Packaging into dist\"
+Write-Header "Packaging AD$AltiumVersion into $DistDir"
 
 # --- Validate build outputs exist -------------------------------------------
 
@@ -53,6 +59,7 @@ if (-not $SkipPlugin -and -not (Test-Path (Join-Path $PluginBin 'EasyEDA-Loader.
     Write-Fail "Run .\Build.ps1 first."
     exit 1
 }
+if (-not $SkipPlugin) { Assert-AltiumTarget $PluginBin $AltiumVersion -RequireManifest }
 
 if ($IncludeStandalone -and -not (Test-Path $StandaloneBin)) {
     Write-Fail "Standalone build output not found: $StandaloneBin"
@@ -78,6 +85,7 @@ if (-not $SkipPlugin) {
         $_.Name -eq 'EasyEDA-Loader.rcs' -or
         $_.Name -eq 'EasyEDA-Loader.dll.config' -or
         $_.Name -eq 'EasyEDA-Loader.deps.json' -or
+        $_.Name -eq 'EasyEDA-Loader.target.json' -or
         ($_.Extension -eq '.dll' -and $_.Name -notmatch $excludePattern -and $_.Name -ne 'EasyEDA-Loader.dll') -or
         ($_.Extension -eq '.xml' -and $_.Name -like 'Newtonsoft.*')
     }
@@ -117,12 +125,14 @@ Write-Header "Packaging complete"
 Write-Host ""
 Write-Host "  Dist : $DistDir" -ForegroundColor White
 Write-Host ""
-Write-Info "Run .\Deploy.ps1 to install into Altium Designer."
+Write-Info "Run .\Deploy.ps1 -AltiumVersion $AltiumVersion to install into Altium Designer."
 Write-Host ""
 
 # Ship every deployment dependency beside dist/, including the shared helper.
 $releaseDir = Join-Path $PSScriptRoot 'release'
 New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-$archive = Join-Path $releaseDir 'EasyEDALoader-ad26.zip'
-Compress-Archive -Path $DistDir, (Join-Path $PSScriptRoot 'Deploy.ps1'), (Join-Path $PSScriptRoot '_Shared.ps1'), (Join-Path $PSScriptRoot 'LICENSE') -DestinationPath $archive -Force
+$archive = Join-Path $releaseDir "EasyEDALoader-ad$AltiumVersion.zip"
+$archiveFiles = @($DistDir, (Join-Path $PSScriptRoot 'Deploy.ps1'), (Join-Path $PSScriptRoot '_Shared.ps1'), (Join-Path $PSScriptRoot 'LICENSE'))
+if ($AltiumVersion -eq '17') { $archiveFiles += Join-Path $PSScriptRoot 'AD17.md' }
+Compress-Archive -Path $archiveFiles -DestinationPath $archive -Force
 Write-Ok "Release archive: $archive"

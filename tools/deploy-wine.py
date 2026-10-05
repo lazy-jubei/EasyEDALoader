@@ -2,6 +2,7 @@
 """Deploy a locally built extension into an Altium Wine prefix, with backups."""
 import argparse
 import datetime
+import json
 import os
 from pathlib import Path
 import shutil
@@ -10,7 +11,21 @@ import uuid
 import xml.etree.ElementTree as ET
 
 HRID = 'EasyEDA-Loader'
-REQUIRED = ('EasyEDA-Loader.dll', 'EasyEDA-Loader.Ins', 'EasyEDA-Loader.rcs', 'EasyEDA-Loader.deps.json', 'Newtonsoft.Json.dll')
+COMMON_REQUIRED = ('EasyEDA-Loader.dll', 'EasyEDA-Loader.Ins', 'EasyEDA-Loader.rcs', 'Newtonsoft.Json.dll')
+REQUIRED = COMMON_REQUIRED + ('EasyEDA-Loader.deps.json',)
+
+def validate_target(dist, altium_version):
+    if altium_version not in ('17', '26'):
+        raise ValueError('Altium version must be 17 or 26.')
+    manifest = dist / 'EasyEDA-Loader.target.json'
+    if not manifest.is_file():
+        if altium_version == '17':
+            raise ValueError('Missing target manifest. Rebuild for AD17.')
+        return  # Older AD26 packages predate the target manifest.
+    target = json.loads(manifest.read_text(encoding='utf-8-sig'))
+    framework, architecture = ('net48', 'x86') if altium_version == '17' else ('net8.0-windows', 'x64')
+    if (target.get('altiumVersion'), target.get('framework'), target.get('architecture')) != (altium_version, framework, architecture):
+        raise ValueError(f'Package target does not match AD{altium_version} ({framework}/{architecture}).')
 
 def windows_path(path, prefix):
     path, drive = Path(path).resolve(), (Path(prefix) / 'drive_c').resolve()
@@ -31,9 +46,11 @@ def find_extensions(prefix, explicit=None):
         raise ValueError('No ExtensionsRegistry.xml in the selected extension folder.')
     return root
 
-def deploy(dist, prefix, extensions_root=None, dry_run=False):
+def deploy(dist, prefix, extensions_root=None, dry_run=False, altium_version='26'):
     dist = Path(dist).resolve()
-    for name in REQUIRED:
+    validate_target(dist, altium_version)
+    required = REQUIRED if altium_version == '26' else COMMON_REQUIRED
+    for name in required:
         if not (dist / name).is_file():
             raise ValueError(f'Missing built artifact: {name}')
     files = [p for p in dist.iterdir() if p.is_file()]
@@ -77,7 +94,7 @@ def deploy(dist, prefix, extensions_root=None, dry_run=False):
             pv = ET.SubElement(item, 'PlatformVersions')
             for name, version in [('DXP', '1.0.16.41'), ('EDP', '1.0.16.41'), ('MaxDXP', '0.0.0.0'), ('MaxEDP', '0.0.0.0')]:
                 ET.SubElement(pv, name, BuildNumber=version)
-        for name, value in [('Path', windows_path(target, prefix)), ('Version', '1.1.0.0')]:
+        for name, value in [('Path', windows_path(target, prefix)), ('Version', '1.2.0.0')]:
             child = item.find(name)
             if child is None:
                 child = ET.SubElement(item, name)
@@ -103,12 +120,15 @@ def deploy(dist, prefix, extensions_root=None, dry_run=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--prefix', type=Path, default=Path.home() / 'AltiumWine/prefix')
-    parser.add_argument('--dist', type=Path, default=Path(__file__).resolve().parents[1] / 'dist')
+    parser.add_argument('--altium-version', choices=('17', '26'), default='26')
+    parser.add_argument('--prefix', type=Path)
+    parser.add_argument('--dist', type=Path)
     parser.add_argument('--extensions-root', type=Path)
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
-    target, backup = deploy(args.dist, args.prefix, args.extensions_root, args.dry_run)
+    prefix = args.prefix or Path.home() / ('AltiumWine17/prefix' if args.altium_version == '17' else 'AltiumWine/prefix')
+    dist = args.dist or Path(__file__).resolve().parents[1] / ('dist-ad17' if args.altium_version == '17' else 'dist')
+    target, backup = deploy(dist, prefix, args.extensions_root, args.dry_run, args.altium_version)
     print(('Would install into: ' if args.dry_run else 'Installed into: ') + str(target))
     if backup:
         print('Backup: ' + str(backup))

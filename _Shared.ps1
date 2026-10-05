@@ -46,6 +46,20 @@ function Find-MSBuild {
     return $null
 }
 
+function Assert-AltiumTarget([string]$Directory, [string]$AltiumVersion, [switch]$RequireManifest) {
+    $manifestPath = Join-Path $Directory 'EasyEDA-Loader.target.json'
+    if (-not (Test-Path $manifestPath -PathType Leaf)) {
+        if ($RequireManifest -or $AltiumVersion -eq '17') { throw "Missing target manifest in $Directory. Rebuild for AD$AltiumVersion." }
+        return # Older AD26 packages predate the target manifest.
+    }
+    $target = Get-Content $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $framework = if ($AltiumVersion -eq '17') { 'net48' } else { 'net8.0-windows' }
+    $architecture = if ($AltiumVersion -eq '17') { 'x86' } else { 'x64' }
+    if ($target.altiumVersion -ne $AltiumVersion -or $target.framework -ne $framework -or $target.architecture -ne $architecture) {
+        throw "Package target does not match AD$AltiumVersion ($framework/$architecture). Rebuild with the matching -AltiumVersion."
+    }
+}
+
 # Refuse ambiguous installations rather than deploying to the most recently modified one.
 function Find-AltiumExtRoot([string]$ExtensionsRoot) {
     if ($ExtensionsRoot) {

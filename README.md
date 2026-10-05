@@ -1,8 +1,8 @@
-# EasyEDALoader for Altium 26
+# EasyEDALoader for Altium
 
 Import EasyEDA/LCSC symbols, footprints and 3D models into Altium Designer.
 
-This local fork of [expired6978/EasyEDALoader](https://github.com/expired6978/EasyEDALoader) targets **Altium 26.10.1**, using its .NET 8 runtime and DevExpress 25.2 libraries. Compatibility changes and testing are recorded in [AD26.md](AD26.md).
+This local fork of [expired6978/EasyEDALoader](https://github.com/expired6978/EasyEDALoader) supports separate builds for **AD26** (.NET 8/x64) and **AD17** (.NET Framework 4.8/x86). AD26 imports have been verified; AD17 is compiled but awaits runtime testing. See [AD26.md](AD26.md) and [AD17.md](AD17.md).
 
 ## Usage
 
@@ -10,7 +10,7 @@ With a schematic active, open **EasyEDA Loader**, search for an LCSC part number
 
 ## Build and install
 
-Requires .NET SDK 8 or later and an installed copy of Altium 26. SDK and DevExpress references are read directly from the installation; they are not bundled with the plugin.
+Requires .NET SDK 8 or later and the matching Altium installation. SDK and DevExpress libraries are not bundled. Commands below default to AD26; [AD17 build instructions](AD17.md) use `AltiumVersion 17`.
 
 On Windows, use PowerShell 5.1 or later:
 

@@ -15,6 +15,9 @@
     <PackageReference Include="HelixToolkit.Wpf" Version="3.1.2" />
   </ItemGroup>
 
+  <Target Name="ValidateStandaloneTarget" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(AltiumVersion)' != '26'" Text="The standalone preview app supports the AD26 target only. Build the plugin project for AD17." />
+  </Target>
   <ItemGroup>
     <ProjectReference Include="..\EasyEDA-Loader\EasyEDA-Loader.csproj" />
   </ItemGroup>

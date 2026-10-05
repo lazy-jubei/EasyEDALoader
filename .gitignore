@@ -58,6 +58,7 @@ TestResult.xml
 nunit-*.xml
 .tools/
 dist/
+dist-ad17/
 release/
 .DS_Store
 __pycache__/
