@@ -40,7 +40,7 @@ namespace EasyEDA_Loader
             {
                 bool canPlace = string.Equals(currentDocument?.GetKind(), "SCH", StringComparison.OrdinalIgnoreCase);
                 var window = new PartSearch.PartSearchWindow(canPlace);
-                if (window.ShowDialog() != true || window.SelectedPart == null || window.SelectedModel == null) return;
+                if (DialogHost.Show(window) != true || window.SelectedPart == null || window.SelectedModel == null) return;
                 var imported = PartSearch.SupplierLibraryImporter.Import(window.SelectedPart, window.SelectedOffer, window.SelectedModel);
                 if (window.PlaceInSchematic)
                 {
@@ -68,13 +68,14 @@ namespace EasyEDA_Loader
             }
             catch (Exception ex)
             {
+                RuntimeDiagnostics.Error(argCommandId, ex);
                 if (noGUIMode)
                 {
                     throw;
                 }
                 else
                 {
-                    int num = (int)MessageBox.Show(ex.Message, errorTitle, MessageBoxButtons.OK, MessageBoxIcon.Hand);
+                    int num = (int)MessageBox.Show(ex.GetBaseException().Message, errorTitle, MessageBoxButtons.OK, MessageBoxIcon.Hand);
                 }
             }
         }));
@@ -85,12 +86,12 @@ namespace EasyEDA_Loader
             if (currentSheet == null)
                 throw new InvalidOperationException("Must be in a schematic document before placing a component.");
 
-            var newComponent = AltiumApi.GlobalVars.SCHServer.LoadComponentFromLibrary(partName, schLibraryPath);
-            if (newComponent == null)
-                throw new InvalidOperationException("Could not load the imported schematic component.");
-            currentSheet.AddSchObject(newComponent);
-            newComponent.MoveToXY(0, 0);
-            newComponent.SetState_Orientation(TRotationBy90.eRotate0);
+            // Let Altium register the placement and its undo operation together.
+            var manager = EDP.Utils.LoadIntegratedLibraryManager()
+                ?? throw new InvalidOperationException("Altium's library manager is unavailable.");
+            if (!manager.PlaceLibraryComponent(partName, schLibraryPath,
+                "Location.X=0|Location.Y=0|Orientation=0|PartID=1"))
+                throw new InvalidOperationException("Altium could not place the component. It remains available in EasyEDA.schlib.");
             currentSheet.GraphicallyInvalidate();
         }
 
@@ -242,6 +243,7 @@ namespace EasyEDA_Loader
                     }
                     catch (Exception ex)
                     {
+                        RuntimeDiagnostics.Error($"Import {selection.PartInfo.Name}", ex);
                         MessageBox.Show($"Failed to process component {selection.PartInfo.Name}: {ex.Message}", "EasyEDA Loader Error", MessageBoxButtons.OK, MessageBoxIcon.Hand);
                     }
                 }

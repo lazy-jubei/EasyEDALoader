@@ -138,9 +138,9 @@
                                 Width="150"
                                 MinWidth="100"/>
 
-                <dxg:GridColumn Header="Description" 
+                <dxg:GridColumn x:Name="descriptionColumn" Header="Description"
                                 FieldName="Description" 
-                                Width="*"
+                                Width="220"
                                 MinWidth="200"/>
             </dxg:GridControl.Columns>
         </dxg:GridControl>

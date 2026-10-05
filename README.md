@@ -2,7 +2,7 @@
 
 Import EasyEDA/LCSC symbols, footprints and 3D models into Altium Designer.
 
-This local fork of [expired6978/EasyEDALoader](https://github.com/expired6978/EasyEDALoader) supports separate builds for **AD26** (.NET 8/x64) and **AD17** (.NET Framework 4.8/x86). AD26 imports have been verified; AD17 is compiled but awaits runtime testing. See [AD26.md](AD26.md) and [AD17.md](AD17.md).
+This local fork of [expired6978/EasyEDALoader](https://github.com/expired6978/EasyEDALoader) supports **AD26** (.NET 8/x64) and **AD17** (.NET Framework 4.8/x86). Imports have been tested in both versions. See [AD26.md](AD26.md) and [AD17.md](AD17.md).
 
 AD17 also includes a [Manufacturer Part Search prototype](ManufacturerPartSearch.md) using suppliers configured in Altium and its library browser.
 

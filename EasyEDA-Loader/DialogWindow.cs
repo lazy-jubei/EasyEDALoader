@@ -40,6 +40,13 @@ namespace EasyEDA_Loader
         public DialogWindow()
         {
             InitializeComponent();
+#if ALTIUM17
+            // DevExpress 15.2 accepts numeric column widths only.
+            resultsGrid.SizeChanged += (s, e) => descriptionColumn.Width = Math.Max(200, resultsGrid.ActualWidth - 290);
+#else
+            var width = TypeDescriptor.GetProperties(descriptionColumn)["Width"];
+            descriptionColumn.SetValue(BaseColumn.WidthProperty, width.Converter.ConvertFromInvariantString("*"));
+#endif
             
             Api = new EasyedaApi();
             cts = new CancellationTokenSource();

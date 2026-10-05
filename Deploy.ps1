@@ -97,16 +97,18 @@ function Update-ExtensionsRegistry([string]$RegistryPath, [string]$DeployDir) {
             $item.AppendChild($el) | Out-Null
         }
 
-        $pv = $xml.CreateElement('PlatformVersions')
-        foreach ($name in @('DXP', 'EDP', 'MaxDXP', 'MaxEDP')) {
-            $el = $xml.CreateElement($name)
-            $el.SetAttribute('BuildNumber', $(if ($name -like 'Max*') { '0.0.0.0' } else { '1.0.16.41' }))
-            $pv.AppendChild($el) | Out-Null
-        }
-        $item.AppendChild($pv) | Out-Null
-
         $xml.Extensions.AppendChild($item) | Out-Null
         Write-Ok "Registry: $PluginHrid entry added."
+    }
+
+    $item = $xml.SelectSingleNode('/Extensions/Item[@HRID="EasyEDA-Loader"]')
+    $pv = $item.SelectSingleNode('PlatformVersions')
+    if (-not $pv) { $pv = $xml.CreateElement('PlatformVersions'); $item.AppendChild($pv) | Out-Null }
+    $minimums = if ($AltiumVersion -eq '17') { @{ DXP = '1.0.5.5'; EDP = '10.0.5.5' } } else { @{ DXP = '1.0.16.41'; EDP = '1.0.16.41' } }
+    foreach ($name in @('DXP', 'EDP', 'MaxDXP', 'MaxEDP')) {
+        $el = $pv.SelectSingleNode($name)
+        if (-not $el) { $el = $xml.CreateElement($name); $pv.AppendChild($el) | Out-Null }
+        $el.SetAttribute('BuildNumber', $(if ($name -like 'Max*') { '0.0.0.0' } else { $minimums[$name] }))
     }
 
     $settings = New-Object System.Xml.XmlWriterSettings

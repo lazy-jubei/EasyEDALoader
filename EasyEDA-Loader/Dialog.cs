@@ -23,7 +23,7 @@ namespace EasyEDA_Loader
         public DialogResult ShowDialog()
         {
             // Show the WPF dialog and convert the result to WinForms DialogResult
-            bool? result = wpfDialog.ShowDialog();
+            bool? result = DialogHost.Show(wpfDialog);
             
             if (result == true)
                 return DialogResult.OK;

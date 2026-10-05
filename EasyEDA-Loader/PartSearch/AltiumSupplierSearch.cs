@@ -25,6 +25,7 @@ namespace EasyEDA_Loader.PartSearch
             internal List<SupplierPart> Parts { get; } = new List<SupplierPart>();
             internal int RawCount { get; set; }
             internal int? Total { get; set; }
+            internal bool SupportsPaging { get; set; }
         }
 
         internal const int PageSize = 50;
@@ -51,7 +52,10 @@ namespace EasyEDA_Loader.PartSearch
             // Altium's UI thread. Do not move its COM objects to Task.Run workers.
             using var sink = new SearchSink(provider, token);
             uint handle = unchecked((uint)sink.Handle.ToInt32());
-            if (mpnOnly) provider.Native.BackgroundSearchByManufacturerPartNumber(query, handle);
+            // AD17's Ciiva MPN endpoint fails even for parts its keyword search
+            // returns. Keep the working native search and filter exact MPNs.
+            bool keyword = !mpnOnly || string.Equals(provider.Name, "Ciiva", StringComparison.OrdinalIgnoreCase);
+            if (!keyword) provider.Native.BackgroundSearchByManufacturerPartNumber(query, handle);
             else
             {
                 var filters = new TSupplierSearchFilterSet();
@@ -60,6 +64,9 @@ namespace EasyEDA_Loader.PartSearch
                 provider.Native.BackgroundSearchByKeyword(query, PageSize, offset, filters, null, null, handle);
             }
             var page = await sink.Completion;
+            page.SupportsPaging = keyword;
+            if (keyword && mpnOnly)
+                page.Parts.RemoveAll(p => !string.Equals(p.Mpn?.Trim(), query.Trim(), StringComparison.OrdinalIgnoreCase));
             if (inStock) page.Parts.RemoveAll(p => !p.Offers.Any(o => o.Stock.GetValueOrDefault() > 0));
             return page;
         }
@@ -153,7 +160,7 @@ namespace EasyEDA_Loader.PartSearch
                     else
                     {
                         string error = (value as ISupplierSearchError)?.ErrorMessage();
-                        _completion.TrySetException(new InvalidOperationException(error ?? "Altium's supplier provider reported a search error."));
+                        _completion.TrySetException(new InvalidOperationException($"{_provider.Name} provider reported: {error ?? "Search failed."}"));
                     }
                 }
                 catch (Exception error) { _completion.TrySetException(error); }

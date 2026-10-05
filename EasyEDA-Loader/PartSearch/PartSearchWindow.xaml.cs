@@ -18,7 +18,7 @@ namespace EasyEDA_Loader.PartSearch
         private readonly AltiumSupplierSearch _search = new AltiumSupplierSearch();
         private readonly ObservableCollection<SupplierPart> _parts = new ObservableCollection<SupplierPart>();
         private CancellationTokenSource _request;
-        private bool _closed, _busy, _ready, _hasNext;
+        private bool _closed, _busy, _ready, _hasNext, _supportsPaging;
         private int _offset;
         private string _query;
         private bool _mpnOnly, _inStock;
@@ -92,13 +92,18 @@ namespace EasyEDA_Loader.PartSearch
                 _offset = offset;
                 _parts.Clear();
                 foreach (var part in page.Parts) _parts.Add(part);
-                _hasNext = !_mpnOnly && (page.Total.HasValue ? offset + AltiumSupplierSearch.PageSize < page.Total.Value : page.RawCount >= AltiumSupplierSearch.PageSize);
-                pageText.Text = _mpnOnly ? "MPN results" : $"Page {offset / AltiumSupplierSearch.PageSize + 1}";
+                _supportsPaging = page.SupportsPaging;
+                _hasNext = _supportsPaging && (page.Total.HasValue ? offset + AltiumSupplierSearch.PageSize < page.Total.Value : page.RawCount >= AltiumSupplierSearch.PageSize);
+                pageText.Text = _supportsPaging ? $"Page {offset / AltiumSupplierSearch.PageSize + 1}" : "MPN results";
                 statusText.Text = $"{page.Parts.Count} manufacturer parts from {_provider.Name}. Filters apply to this page. Stock and prices are supplier snapshots.";
                 if (_parts.Count > 0) resultsGrid.SelectedIndex = 0;
             }
             catch (OperationCanceledException) { if (!_closed) statusText.Text = "Search canceled."; }
-            catch (Exception error) { if (!_closed) statusText.Text = $"Search failed: {error.Message}"; }
+            catch (Exception error)
+            {
+                RuntimeDiagnostics.Error("Supplier search", error);
+                if (!_closed) statusText.Text = $"Search failed: {error.Message}";
+            }
             finally { _busy = false; if (!_closed) UpdateControls(); }
         }
 
@@ -141,7 +146,7 @@ namespace EasyEDA_Loader.PartSearch
             if (!_ready || _closed) return;
             searchButton.IsEnabled = !_busy && providerCombo.SelectedItem != null;
             providerCombo.IsEnabled = queryBox.IsEnabled = mpnOnlyBox.IsEnabled = inStockBox.IsEnabled = !_busy;
-            previousButton.IsEnabled = !_busy && !_mpnOnly && _offset > 0;
+            previousButton.IsEnabled = !_busy && _supportsPaging && _offset > 0;
             nextButton.IsEnabled = !_busy && _hasNext;
             cancelSearchButton.IsEnabled = _busy;
             importButton.IsEnabled = !_busy && !string.IsNullOrWhiteSpace(SelectedPart?.Mpn);

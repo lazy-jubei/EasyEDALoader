@@ -141,9 +141,11 @@ namespace EasyEDA_Loader
         public static IPCB_ComponentBody CreateComponentBody(IPCB_LibComponent c, string fileName, double rx, double ry, double rz, double x, double y, double z)
         {
             var stepModel = AltiumApi.GlobalVars.PCBServer.PCBObjectFactory(TObjectId.eComponentBodyObject, TDimensionKind.eNoDimension, TObjectCreationMode.eCreate_Default) as IPCB_ComponentBody;
-            if (stepModel == null) return null;
+            if (stepModel == null) throw new InvalidOperationException("Altium could not create a 3D component body.");
             var model = stepModel.ModelFactory_FromFilename(fileName, false);
-            if (model == null) return null;
+            if (model == null || model.IsEmpty())
+                throw new InvalidOperationException("Altium could not load the STEP model. The symbol and footprint can still be imported without 3D geometry.");
+            model.SetEmbed(true);
             model.SetState(rx, ry, rz, AltiumApi.MmToCoord(z));
             stepModel.SetModel(model);
             // Model is created at the bottom-left origin of the board, so we need to offset it

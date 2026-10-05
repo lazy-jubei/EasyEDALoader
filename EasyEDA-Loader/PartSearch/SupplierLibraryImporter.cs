@@ -17,10 +17,10 @@ namespace EasyEDA_Loader.PartSearch
         {
             var manager = EDP.Utils.LoadIntegratedLibraryManager()
                 ?? throw new InvalidOperationException("Altium's library manager is unavailable.");
-            string reference = suggestedMpn ?? "", schLibrary = "", model = "", modelLibrary = "", library = "", modelType = "PCBLIB";
+            string reference = suggestedMpn ?? "", schLibrary = "", model = "", modelLibrary = "", library = "", modelType = "";
             int partId = 1;
-            manager.BrowseForComponentAndPart(ref reference, ref schLibrary, ref model, ref modelLibrary,
-                ref library, ref modelType, ref partId);
+            manager.BrowseForComponent(ref reference, ref schLibrary, ref model, ref modelLibrary,
+                ref library, ref modelType);
             if (string.IsNullOrWhiteSpace(reference) || string.IsNullOrWhiteSpace(schLibrary)) return null;
             return new LibraryModelChoice { Reference = reference, LibraryPath = schLibrary, PartId = partId };
         }

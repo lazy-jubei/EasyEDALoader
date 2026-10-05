@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -51,5 +52,13 @@ class DeploymentTests(unittest.TestCase):
             with self.assertRaises(OSError):module.deploy(self.dist,self.prefix)
         self.assertEqual(self.registry.read_bytes(),before)
         self.assertEqual((target/'old-file.txt').read_text(),'keep me')
+    def test_ad17_registration_repairs_ad26_minimum_versions(self):
+        module.deploy(self.dist,self.prefix)
+        (self.dist/'EasyEDA-Loader.target.json').write_text(json.dumps({'altiumVersion':'17','framework':'net48','architecture':'x86'}))
+        module.deploy(self.dist,self.prefix,altium_version='17')
+        item=ET.parse(self.registry).getroot().find("Item[@HRID='EasyEDA-Loader']")
+        self.assertEqual(item.find('PlatformVersions/DXP').get('BuildNumber'),'1.0.5.5')
+        self.assertEqual(item.find('PlatformVersions/EDP').get('BuildNumber'),'10.0.5.5')
+        self.assertTrue(ET.parse(self.registry).getroot().find("Item[@HRID='Other']") is not None)
 
 if __name__=='__main__':unittest.main()

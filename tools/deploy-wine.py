@@ -91,9 +91,15 @@ def deploy(dist, prefix, extensions_root=None, dry_run=False, altium_version='26
                       'ReleasedDate': f'{today:.7f}', 'ReleaseNotes': '', 'DateInstalled': f'{today:.7f}'}
             for name, value in fields.items():
                 ET.SubElement(item, name).text = value
+        pv = item.find('PlatformVersions')
+        if pv is None:
             pv = ET.SubElement(item, 'PlatformVersions')
-            for name, version in [('DXP', '1.0.16.41'), ('EDP', '1.0.16.41'), ('MaxDXP', '0.0.0.0'), ('MaxEDP', '0.0.0.0')]:
-                ET.SubElement(pv, name, BuildNumber=version)
+        minimums = ('1.0.5.5', '10.0.5.5') if altium_version == '17' else ('1.0.16.41', '1.0.16.41')
+        for name, version in zip(('DXP', 'EDP', 'MaxDXP', 'MaxEDP'), (*minimums, '0.0.0.0', '0.0.0.0')):
+            platform = pv.find(name)
+            if platform is None:
+                platform = ET.SubElement(pv, name)
+            platform.set('BuildNumber', version)
         for name, value in [('Path', windows_path(target, prefix)), ('Version', '1.2.0.0')]:
             child = item.find(name)
             if child is None:

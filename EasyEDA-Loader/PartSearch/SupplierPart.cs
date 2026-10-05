@@ -99,15 +99,22 @@ namespace EasyEDA_Loader.PartSearch
                 Supplier = source.GetState_SupplierName(), Sku = source.GetState_SupplierPartNumber(),
                 Currency = source.GetState_Currency(), Stock = stock < 0 ? (int?)null : stock
             };
-            // Aggregate providers may return offers from other supplier sources.
-            // Resolve their own URL builder without assuming a distributor domain.
-            try
+            // Ciiva's URL builder performs another supplier search and throws
+            // when that lookup returns no part. Use links in its result instead.
+            offer.Url = new[] { "Supplier URL", "Product URL", "Ciiva Url" }
+                .Where(part.Parameters.ContainsKey).Select(key => part.Parameters[key]).FirstOrDefault(WebLinks.IsHttp);
+            if (offer.Url == null && !string.Equals(part.Provider, "Ciiva", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(offer.Sku))
             {
-                string supplierSource = source.GetState_SupplierSource();
-                var linkProvider = string.IsNullOrWhiteSpace(supplierSource) ? provider : manager.GetSourceByName(supplierSource) ?? provider;
-                offer.Url = linkProvider.GetSearchUrl(offer.Sku);
+                try
+                {
+                    string supplierSource = source.GetState_SupplierSource();
+                    var linkProvider = string.IsNullOrWhiteSpace(supplierSource) ? provider : manager.GetSourceByName(supplierSource) ?? provider;
+                    offer.Url = linkProvider.GetSearchUrl(offer.Sku);
+                }
+                catch (System.Runtime.InteropServices.COMException) { }
+                catch (NullReferenceException) { }
             }
-            catch (System.Runtime.InteropServices.COMException) { }
             // Providers implementing the original interface need not expose the newer timestamp.
             try { offer.Updated = (source as ISupplierSourceRelationship2)?.GetState_LastUpdated(); }
             catch (System.Runtime.InteropServices.COMException) { }
