@@ -13,7 +13,7 @@ Changes in this fork:
 
 Build and test details: [AD26](AD26.md) · [AD17](AD17.md).
 
-AD17 includes [Manufacturer Part Search](ManufacturerPartSearch.md), also available as a [standalone plugin](https://github.com/lazy-jubei/Altium17ManufacturerPartSearch).
+AD17 includes [Manufacturer Part Search](ManufacturerPartSearch.md), also available in [Altium-17-MPS](https://github.com/lazy-jubei/Altium-17-MPS).
 
 ## Usage
 
