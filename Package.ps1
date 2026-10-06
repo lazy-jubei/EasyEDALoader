@@ -132,10 +132,18 @@ Write-Host ""
 $releaseDir = Join-Path $PSScriptRoot 'release'
 New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 $archive = Join-Path $releaseDir "EasyEDALoader-ad$AltiumVersion.zip"
-$archiveFiles = @($DistDir, (Join-Path $PSScriptRoot 'Deploy.ps1'), (Join-Path $PSScriptRoot '_Shared.ps1'), (Join-Path $PSScriptRoot 'LICENSE'))
+$archiveFiles = @($DistDir, (Join-Path $PSScriptRoot 'Deploy.ps1'), (Join-Path $PSScriptRoot '_Shared.ps1'), (Join-Path $PSScriptRoot 'LICENSE'), (Join-Path $PSScriptRoot 'README.md'), (Join-Path $PSScriptRoot 'THIRD-PARTY-NOTICES.md'))
 if ($AltiumVersion -eq '17') {
     $archiveFiles += Join-Path $PSScriptRoot 'AD17.md'
     $archiveFiles += Join-Path $PSScriptRoot 'ManufacturerPartSearch.md'
+} else {
+    $archiveFiles += Join-Path $PSScriptRoot 'AD26.md'
 }
-Compress-Archive -Path $archiveFiles -DestinationPath $archive -Force
+$toolsParent = Join-Path ([System.IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString('N'))
+$toolsStage = Join-Path $toolsParent 'tools'
+try {
+    New-Item -ItemType Directory -Path $toolsStage -Force | Out-Null
+    Get-ChildItem (Join-Path $PSScriptRoot 'tools') -File | Where-Object { $_.Extension -in '.py','.sh' } | ForEach-Object { Copy-Item $_.FullName $toolsStage }
+    Compress-Archive -Path ($archiveFiles + @($toolsStage)) -DestinationPath $archive -Force
+} finally { if (Test-Path $toolsParent) { Remove-Item $toolsParent -Recurse -Force } }
 Write-Ok "Release archive: $archive"

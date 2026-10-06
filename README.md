@@ -2,15 +2,26 @@
 
 Import EasyEDA/LCSC symbols, footprints and 3D models into Altium Designer.
 
-This local fork of [expired6978/EasyEDALoader](https://github.com/expired6978/EasyEDALoader) supports **AD26** (.NET 8/x64) and **AD17** (.NET Framework 4.8/x86). Imports have been tested in both versions. See [AD26.md](AD26.md) and [AD17.md](AD17.md).
+Fork of [expired6978/EasyEDALoader](https://github.com/expired6978/EasyEDALoader), tested in **Altium Designer 17.1 and 26.10.1** under Wine.
 
-AD17 also includes a [Manufacturer Part Search prototype](ManufacturerPartSearch.md) using suppliers configured in Altium and its library browser.
+Changes in this fork:
+
+- AD26 (.NET 8/x64) and AD17 (.NET Framework 4.8/x86) builds.
+- Fixed symbol parsing, pin layout, 3D model offsets and download handling.
+- Fixed dialog ownership, deployment and schematic placement with undo/redo.
+- Added AD17 search using Altium's native suppliers.
+
+Build and test details: [AD26](AD26.md) · [AD17](AD17.md).
+
+AD17 includes [Manufacturer Part Search](ManufacturerPartSearch.md), also available as a [standalone plugin](https://github.com/lazy-jubei/Altium17ManufacturerPartSearch).
 
 ## Usage
 
 With a schematic active, open **EasyEDA Loader**, search for an LCSC part number such as `C2040`, tick the part, then choose **Add to Library**. Libraries are saved in `Documents/AltiumEE`. Disable **Place in schematic** to import without placing a component in the active sheet.
 
 ## Build and install
+
+Prebuilt [AD17 and AD26 downloads](https://github.com/lazy-jubei/EasyEDALoader/releases/latest) are available. Extract the matching archive and run `Deploy.ps1 -AltiumVersion 17` or `Deploy.ps1 -AltiumVersion 26`; on macOS, use the included `tools/deploy-wine.py` with `--altium-version 17` or `26`.
 
 Requires .NET SDK 8 or later and the matching Altium installation. SDK and DevExpress libraries are not bundled. Commands below default to AD26; [AD17 build instructions](AD17.md) use `AltiumVersion 17`.
 
