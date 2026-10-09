@@ -17,6 +17,10 @@ AD17 includes [Manufacturer Part Search](ManufacturerPartSearch.md), also availa
 
 ## Screenshots
 
+[![EasyEDA Loader window in Altium Designer 17 under Wine](Assets/EasyEDA-Loader-Window.png)](Assets/EasyEDA-Loader-Window.png)
+
+*EasyEDA Loader window in Altium Designer 17 under Wine.*
+
 RP2040 import examples: EasyEDA on the left, Altium on the right. Click an image to enlarge it.
 
 | Schematic symbol | PCB footprint | 3D model |
