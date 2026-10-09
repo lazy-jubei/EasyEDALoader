@@ -15,6 +15,14 @@ Build and test details: [AD26](AD26.md) · [AD17](AD17.md).
 
 AD17 includes [Manufacturer Part Search](ManufacturerPartSearch.md), also available in [Altium-17-MPS](https://github.com/lazy-jubei/Altium-17-MPS).
 
+## Screenshots
+
+RP2040 import examples: EasyEDA on the left, Altium on the right. Click an image to enlarge it.
+
+| Schematic symbol | PCB footprint | 3D model |
+|---|---|---|
+| [![RP2040 schematic symbol in EasyEDA and Altium](Assets/Compare-Symbol.png)](Assets/Compare-Symbol.png) | [![RP2040 PCB footprint in EasyEDA and Altium](Assets/Compare-Footprint.png)](Assets/Compare-Footprint.png) | [![RP2040 3D model in EasyEDA and Altium](Assets/Compare-3D.png)](Assets/Compare-3D.png) |
+
 ## Usage
 
 With a schematic active, open **EasyEDA Loader**, search for an LCSC part number such as `C2040`, tick the part, then choose **Add to Library**. Libraries are saved in `Documents/AltiumEE`. Disable **Place in schematic** to import without placing a component in the active sheet.
