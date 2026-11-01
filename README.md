@@ -1,5 +1,7 @@
 # EasyEDALoader for Altium
 
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=lazy-jubei_EasyEDALoader&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=lazy-jubei_EasyEDALoader)
+
 Import EasyEDA/LCSC symbols, footprints and 3D models into Altium Designer.
 
 Fork of [expired6978/EasyEDALoader](https://github.com/expired6978/EasyEDALoader), tested in **Altium Designer 17.1 and 26.10.1** under Wine.
