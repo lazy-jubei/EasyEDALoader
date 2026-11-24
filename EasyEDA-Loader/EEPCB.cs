@@ -20,11 +20,10 @@ namespace EasyEDA_Loader
 
             }
         }
-        public static IPCB_LibComponent CreateFootprintInLib(string name, string description)
+        public static IPCB_LibComponent CreateFootprintInLib(IPCB_Library pcbLib, string name, string description)
         {
-            var pcbLib = AltiumApi.GlobalVars.PCBServer.GetCurrentPCBLibrary();
-            if (pcbLib == null) return null;
             var footprint = pcbLib.CreateNewComponent();
+            if (footprint == null) return null;
             pcbLib.SetState_CurrentComponent(footprint);
             var uid = pcbLib.GetUniqueCompName(name);
             footprint.SetState_Pattern(uid);

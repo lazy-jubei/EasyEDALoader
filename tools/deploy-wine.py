@@ -68,13 +68,13 @@ def deploy(dist, prefix, extensions_root=None, dry_run=False, altium_version='26
     if dry_run:
         return target, None
     stamp = uuid.uuid4().hex
-    backup = root / f'{HRID}.{stamp}.backup'
-    backup.mkdir()
+    backup = root.parent / 'EasyEDALoader-Backups' / stamp
+    backup.mkdir(parents=True)
     shutil.copy2(registry, backup / registry.name)
-    if target.exists():
-        shutil.copytree(target, backup / HRID)
-    stage = Path(tempfile.mkdtemp(prefix=f'.{HRID}-', dir=root))
-    registry_temp = root / f'.ExtensionsRegistry.{stamp}.tmp'
+    previous = backup / HRID
+    stage = Path(tempfile.mkdtemp(prefix='new-plugin-', dir=backup))
+    registry_temp = backup / 'new-registry.xml'
+    backed_up = installed = False
     try:
         for file in files:
             shutil.copy2(file, stage / file.name)
@@ -100,7 +100,7 @@ def deploy(dist, prefix, extensions_root=None, dry_run=False, altium_version='26
             if platform is None:
                 platform = ET.SubElement(pv, name)
             platform.set('BuildNumber', version)
-        for name, value in [('Path', windows_path(target, prefix)), ('Version', '1.2.0.0')]:
+        for name, value in [('Path', windows_path(target, prefix)), ('Version', '1.3.0.0')]:
             child = item.find(name)
             if child is None:
                 child = ET.SubElement(item, name)
@@ -108,15 +108,16 @@ def deploy(dist, prefix, extensions_root=None, dry_run=False, altium_version='26
         ET.indent(tree, space='  ')
         tree.write(registry_temp, encoding='utf-8', xml_declaration=True)
         if target.exists():
-            shutil.rmtree(target)
+            target.rename(previous)
+            backed_up = True
         stage.rename(target)
+        installed = True
         os.replace(registry_temp, registry)
     except Exception:
-        if target.exists():
+        if installed:
             shutil.rmtree(target)
-        if (backup / HRID).exists():
-            shutil.copytree(backup / HRID, target)
-        shutil.copy2(backup / registry.name, registry)
+        if backed_up:
+            previous.rename(target)
         raise
     finally:
         if stage.exists():

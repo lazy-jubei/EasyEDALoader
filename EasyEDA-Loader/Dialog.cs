@@ -14,6 +14,7 @@ namespace EasyEDA_Loader
         public List<ComponentSelection> SelectedComponents => wpfDialog?.SelectedComponents;
         public bool CloseDocuments => wpfDialog?.CloseDocuments ?? false;
         public bool PlaceInSchematic => wpfDialog?.PlaceInSchematic ?? true;
+        public string OutputDirectory => wpfDialog.OutputDirectory;
 
         public Dialog()
         {
@@ -38,7 +39,5 @@ namespace EasyEDA_Loader
     {
         public EasyedaApi.PartInfo PartInfo { get; set; }
         public Root Root { get; set; }
-        public bool Include3dModel { get; set; }
-        public bool IncludeFootprint { get; set; }
     }
 }

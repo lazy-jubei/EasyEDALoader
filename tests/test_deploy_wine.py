@@ -23,6 +23,7 @@ class DeploymentTests(unittest.TestCase):
     def test_install_and_update_preserve_other_extension(self):
         target, backup = module.deploy(self.dist,self.prefix)
         self.assertTrue((backup/'ExtensionsRegistry.xml').exists())
+        self.assertFalse(self.root in backup.parents)
         self.assertTrue((target/module.REQUIRED[0]).exists())
         self.assertTrue(ET.parse(self.registry).getroot().find("Item[@HRID='Other']") is not None)
         target.joinpath('stale.dll').write_text('old dependency')

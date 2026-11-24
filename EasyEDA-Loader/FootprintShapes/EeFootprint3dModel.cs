@@ -20,31 +20,6 @@ namespace EasyEDA_Loader
             double CenterX = double.Parse(originParts[0], System.Globalization.CultureInfo.InvariantCulture);
             double CenterY = double.Parse(originParts[1], System.Globalization.CultureInfo.InvariantCulture);
 
-            // Center compute, shouldnt be needed, the GL engine does this for verification of somekind
-            /*
-                        if(node.Attrs.CEtype == "outline3D")
-                        {
-                            double minX = double.PositiveInfinity, minY = double.PositiveInfinity, maxX = double.NegativeInfinity, maxY = double.NegativeInfinity;
-                            foreach (var childNode in node.ChildNodes)
-                            {
-                                var points = childNode.Attrs.Points.Split(' ');
-                                for (var i = 0; i < points.Length; i += 2)
-                                {
-                                    minX = Math.Min(double.Parse(points[i], System.Globalization.CultureInfo.InvariantCulture), minX);
-                                    minY = Math.Min(double.Parse(points[i + 1], System.Globalization.CultureInfo.InvariantCulture), minY);
-                                    maxX = Math.Max(double.Parse(points[i], System.Globalization.CultureInfo.InvariantCulture), maxX);
-                                    maxY = Math.Max(double.Parse(points[i + 1], System.Globalization.CultureInfo.InvariantCulture), maxY);
-                                }
-                            }
-                            // Only use computed centers if they were computed
-                            if (!double.IsPositiveInfinity(minX) && !double.IsPositiveInfinity(minY) && !double.IsNegativeInfinity(maxX) && !double.IsNegativeInfinity(maxY))
-                            {
-                                CenterX = ConvertToMM(maxX - (maxX - minX) / 2);
-                                CenterY = ConvertToMM(maxY - (maxY - minY) / 2);
-                            }
-                        }
-            */
-
             return new EeFootprint3dModel
             {
                 Name = node.Attrs.Title,
@@ -76,15 +51,17 @@ namespace EasyEDA_Loader
             string line;
             while ((line = reader.ReadLine()) != null)
             {
-                if (line.StartsWith("v ", StringComparison.OrdinalIgnoreCase))
+                ctx.CancelToken.ThrowIfCancellationRequested();
+                line = line.TrimStart();
+                if (line.Length < 2 || (line[0] != 'v' && line[0] != 'V') || !char.IsWhiteSpace(line[1]))
+                    continue;
+
+                var parts = line.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 4 &&
+                    double.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out double z) &&
+                    !double.IsNaN(z) && !double.IsInfinity(z) && (!minZ.HasValue || z < minZ))
                 {
-                    var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length >= 4 &&
-                        double.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out double z))
-                    {
-                        if (!minZ.HasValue || z < minZ)
-                            minZ = z;
-                    }
+                    minZ = z;
                 }
             }
 

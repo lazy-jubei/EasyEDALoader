@@ -45,20 +45,21 @@ $ErrorActionPreference = 'Stop'
 
 $PluginHrid = 'EasyEDA-Loader'
 $PluginGuid = '8035C261-E5FE-403B-A9B5-9ABFFB6E0EF5'
+$PluginVersion = '1.3.0.0'
 $PluginVerGuid = '7042BC82-F870-462D-86AF-B158AC75C490'
 
 # --- Helpers -----------------------------------------------------------------
 
 # Ensures EasyEDA-Loader is present in ExtensionsRegistry.xml, inserting an
 # entry if missing or refreshing the Path if the entry already exists.
-function Update-ExtensionsRegistry([string]$RegistryPath, [string]$DeployDir) {
+function Update-ExtensionsRegistry([string]$RegistryPath, [string]$DeployDir, [string]$BackupDir) {
     [xml]$xml = Get-Content $RegistryPath -Encoding UTF8
 
     $existing = $xml.SelectNodes('/Extensions/Item') | Where-Object { $_.HRID -eq $PluginHrid }
     if (@($existing).Count -gt 1) { throw 'Duplicate EasyEDA entries in the extension registry.' }
     if ($existing) {
         $existing.Path = $DeployDir
-        foreach ($field in @{ Version = '1.2.0.0'; VersionGuid = $PluginVerGuid }.GetEnumerator()) {
+        foreach ($field in @{ Version = $PluginVersion; VersionGuid = $PluginVerGuid }.GetEnumerator()) {
             $el = $existing.SelectSingleNode($field.Key)
             if (-not $el) { $el = $xml.CreateElement($field.Key); $existing.AppendChild($el) | Out-Null }
             $el.InnerText = $field.Value
@@ -85,7 +86,7 @@ function Update-ExtensionsRegistry([string]$RegistryPath, [string]$DeployDir) {
             LongDescription  = 'Loads EasyEDA components into Altium Designer'
             SmallImage       = ''
             LargeImage       = ''
-            Version          = '1.2.0.0'
+            Version          = $PluginVersion
             VersionGuid      = $PluginVerGuid
             ReleasedDate     = $oleDate
             ReleaseNotes     = ''
@@ -115,12 +116,16 @@ function Update-ExtensionsRegistry([string]$RegistryPath, [string]$DeployDir) {
     $settings.Indent = $true
     $settings.IndentChars = '  '
     $settings.Encoding = New-Object System.Text.UTF8Encoding($false)  # UTF-8, no BOM
-    $temporaryPath = $RegistryPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
-    $backupPath = $RegistryPath + '.' + [guid]::NewGuid().ToString('N') + '.bak'
-    $writer = [System.Xml.XmlWriter]::Create($temporaryPath, $settings)
-    try   { $xml.Save($writer) }
-    finally { $writer.Flush(); $writer.Close() }
-    [System.IO.File]::Replace($temporaryPath, $RegistryPath, $backupPath)
+    $temporaryPath = Join-Path $BackupDir 'new-registry.xml'
+    $backupPath = Join-Path $BackupDir 'ExtensionsRegistry.xml'
+    try {
+        $writer = [System.Xml.XmlWriter]::Create($temporaryPath, $settings)
+        try { $xml.Save($writer) }
+        finally { $writer.Dispose() }
+        [System.IO.File]::Replace($temporaryPath, $RegistryPath, $backupPath)
+    } finally {
+        if (Test-Path -LiteralPath $temporaryPath) { Remove-Item -LiteralPath $temporaryPath -Force }
+    }
     Write-Info "Registry backup: $backupPath"
 }
 
@@ -178,17 +183,20 @@ if (-not $SkipRegistry) {
 # --- Deploy files ------------------------------------------------------------
 
 Write-Header "Deploying to $DeployDir"
-$stagingDir = $DeployDir + '.' + [guid]::NewGuid().ToString('N') + '.new'
+$backupParent = Join-Path (Split-Path $ExtRoot -Parent) 'EasyEDALoader-Backups'
+$backupDir = Join-Path $backupParent ([guid]::NewGuid().ToString('N'))
+$stagingDir = Join-Path $backupDir 'new-plugin'
 $pluginBackup = $null
 $installedNew = $false
 try {
+    New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
     if (-not $SkipPlugin) {
         New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
         Get-ChildItem $DistDir -File | ForEach-Object {
             Copy-Item $_.FullName -Destination (Join-Path $stagingDir $_.Name) -Force
         }
         if (Test-Path $DeployDir) {
-            $pluginBackup = $DeployDir + '.' + [guid]::NewGuid().ToString('N') + '.bak'
+            $pluginBackup = Join-Path $backupDir $PluginHrid
             Move-Item $DeployDir $pluginBackup
             Write-Info "Plugin backup: $pluginBackup"
         }
@@ -196,7 +204,7 @@ try {
         $installedNew = $true
     }
     if (-not $SkipRegistry) {
-        Update-ExtensionsRegistry -RegistryPath (Join-Path $ExtRoot 'ExtensionsRegistry.xml') -DeployDir $DeployDir
+        Update-ExtensionsRegistry -RegistryPath (Join-Path $ExtRoot 'ExtensionsRegistry.xml') -DeployDir $DeployDir -BackupDir $backupDir
     }
 } catch {
     if ($installedNew -and (Test-Path $DeployDir)) { Remove-Item $DeployDir -Recurse -Force }

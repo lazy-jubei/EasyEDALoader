@@ -9,16 +9,17 @@ namespace EasyEDA_Loader
     {
         private static readonly object Lock = new object();
 
-        public static string LogPath => Path.Combine(
-            Environment.GetEnvironmentVariable("EASYEDA_LIBRARY_DIR") ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "AltiumEE"),
-            "import-errors.log");
+        public static string LogPath { get; private set; }
 
         public static int ErrorCount { get; private set; }
 
-        public static void Reset()
+        public static void Reset(string outputDirectory)
         {
-            lock (Lock) { ErrorCount = 0; }
+            lock (Lock)
+            {
+                LogPath = Path.Combine(outputDirectory, "import-errors.log");
+                ErrorCount = 0;
+            }
         }
 
         public static void Error(string context, Exception ex)

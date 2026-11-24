@@ -1,11 +1,9 @@
 using DXP;
-using PCB;
 using SCH;
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace EasyEDA_Loader
@@ -91,7 +89,7 @@ namespace EasyEDA_Loader
                 ?? throw new InvalidOperationException("Altium's library manager is unavailable.");
             if (!manager.PlaceLibraryComponent(partName, schLibraryPath,
                 "Location.X=0|Location.Y=0|Orientation=0|PartID=1"))
-                throw new InvalidOperationException("Altium could not place the component. It remains available in EasyEDA.schlib.");
+                throw new InvalidOperationException($"Altium could not place the component. The exported library is at {schLibraryPath}.");
             currentSheet.GraphicallyInvalidate();
         }
 
@@ -111,159 +109,42 @@ namespace EasyEDA_Loader
                 return;
             }
 
-            using var ctx = new CancellationTokenSource();
-            var api = new EasyedaApi();
-            ImportLog.Reset();
+            Directory.CreateDirectory(dialog.OutputDirectory);
+            LibraryOutput.RememberDirectory(dialog.OutputDirectory);
+            ImportLog.Reset(dialog.OutputDirectory);
 
-            string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string libraryPath = Environment.GetEnvironmentVariable("EASYEDA_LIBRARY_DIR")
-                ?? Path.Combine(documentsPath, "AltiumEE");
-            Directory.CreateDirectory(libraryPath);
-            string pcbLibraryPath = Path.Combine(libraryPath, "EasyEDA.pcblib");
-            string schLibraryPath = Path.Combine(libraryPath, "EasyEDA.schlib");
-
-            IServerDocument pcbDocument = null;
-            IPCB_Library pcbLib = null;
-            IServerDocument schDocument = null;
+            var importer = new ComponentLibraryImporter(AltiumApi.GlobalVars.Client);
+            var failures = new List<string>();
+            (LibraryOutput Output, string Reference) last = default;
             try
             {
-                if (dialog.SelectedComponents.Exists(selection => selection.IncludeFootprint))
-                {
-                    pcbDocument = AltiumApi.GlobalVars.Client.OpenDocument("PcbLib", pcbLibraryPath)
-                        ?? throw new InvalidOperationException("Could not open the PCB library.");
-                    AltiumApi.GlobalVars.Client.ShowDocument(pcbDocument);
-                    pcbLib = AltiumApi.GlobalVars.PCBServer.GetCurrentPCBLibrary()
-                        ?? throw new InvalidOperationException("Could not access the PCB library.");
-                }
-
-                schDocument = AltiumApi.GlobalVars.Client.OpenDocument("SchLib", schLibraryPath)
-                    ?? throw new InvalidOperationException("Could not open the schematic library.");
-                AltiumApi.GlobalVars.Client.ShowDocument(schDocument);
-                var schLib = EESCH.GetCurrentSchLibrary()
-                    ?? throw new InvalidOperationException("Could not access the schematic library.");
-
-                // Process each selected component
                 foreach (var selection in dialog.SelectedComponents)
                 {
                     try
                     {
-                        var root = selection.Root;
-                        var ee_footprint = root?.Component?.PackageDetail?.Footprint;
-                        var ee_symbol = root?.Component?.Symbol
-                            ?? throw new InvalidOperationException("This part has no schematic symbol.");
-                        string package = ee_footprint?.Head?.Parameters?.Package;
-                        if (selection.IncludeFootprint && (ee_footprint == null || string.IsNullOrWhiteSpace(package)))
-                            throw new InvalidOperationException("This part has no named PCB footprint.");
-                        EeFootprint3dModel model = selection.IncludeFootprint && selection.Include3dModel
-                            ? ee_footprint?.GetModel() : null;
-
-                        // Prefetch model if we can
-                        Task<byte[]> modelTask = model != null ? Task.Run(() => api.LoadModelAsync(model.Uuid, ctx.Token)) : null;
-                        Task<byte[]> rawModelTask = model != null ? Task.Run(() => api.LoadRawModelAsync(model.Uuid, ctx.Token)) : null;
-
-                        // Get product info (use cached from search if available)
-                        EasyedaApi.ProductInfo productInfo = selection.PartInfo.Info;
-
-                        // Create PCB footprint if requested
-                        if (selection.IncludeFootprint)
-                        {
-                            AltiumApi.GlobalVars.Client.ShowDocument(pcbDocument);
-                            var libComp = pcbLib.GetComponentByName(package);
-                            bool createdFootprint = false;
-                            if (libComp == null)
-                            {
-                                libComp = EEPCB.CreateFootprintInLib(package, root.Component.PackageDetail.Title);
-                                createdFootprint = libComp != null;
-                            }
-
-                            if (createdFootprint)
-                            {
-                                AltiumApi.GlobalVars.PCBServer.PreProcess();
-                                try
-                                {
-                                    var footprintContext = new EeFootprintContext
-                                    {
-                                        Box = ee_footprint.BoundingBox,
-                                        Layers = ee_footprint.Layers,
-                                        CancelToken = ctx.Token,
-                                        Exception = (Exception ex) =>
-                                        {
-                                            ImportLog.Error($"footprint '{package}'", ex);
-                                            return true;
-                                        },
-                                        ModelTask = modelTask,
-                                        RawModelTask = rawModelTask,
-                                    };
-                                    ee_footprint.AddToComponent(libComp, footprintContext);
-                                }
-                                finally { AltiumApi.GlobalVars.PCBServer.PostProcess(); }
-                                pcbDocument.DoFileSave("PcbLib");
-                            }
-                        }
-
-                        // Create schematic symbol
-                        AltiumApi.GlobalVars.Client.ShowDocument(schDocument);
-                        string partName = ee_symbol.Head.Parameters.Name;
-                        string description = productInfo?.Description ?? partName;
-
-                        var existingComponent = schLib.GetState_SchComponentByLibRef(partName);
-                        if (existingComponent == null)
-                        {
-                            var component = EESCH.CreateComponent(partName, description, ee_symbol.Head.Parameters.Pre);
-                            if (schLib != null && component != null)
-                            {
-                                var processControl = AltiumApi.GlobalVars.Client.GetProcessControl();
-                                processControl.PreProcess(schDocument, "");
-                                try
-                                {
-                                    SymbolDrawing.CreateComponent(schLib, component, pcbLibraryPath, selection.IncludeFootprint ? package : null, ee_symbol);
-
-                                    if (productInfo?.Parameters != null)
-                                    {
-                                        foreach (var kvp in productInfo.Parameters)
-                                        {
-                                            EESCH.AddParameter(component, kvp.Key, kvp.Value);
-                                        }
-                                    }
-                                }
-                                finally { processControl.PostProcess(schDocument, ""); }
-                                schLib.SetState_Current_SchComponent(component);
-                                schLib.GraphicallyInvalidate();
-                                schDocument.DoFileSave("SchLib");
-                            }
-                        }
-
-                        // Place component in schematic if requested (only the last one)
-                        if (dialog.PlaceInSchematic && selection == dialog.SelectedComponents[dialog.SelectedComponents.Count - 1])
-                        {
-                            // Return to the original document before placing
-                            AltiumApi.GlobalVars.Client.ShowDocument(currentDoc);
-                            PlaceComponent(schLibraryPath, partName);
-                        }
+                        last = importer.Import(selection, dialog.OutputDirectory, !dialog.CloseDocuments);
                     }
                     catch (Exception ex)
                     {
-                        RuntimeDiagnostics.Error($"Import {selection.PartInfo.Name}", ex);
-                        MessageBox.Show($"Failed to process component {selection.PartInfo.Name}: {ex.Message}", "EasyEDA Loader Error", MessageBoxButtons.OK, MessageBoxIcon.Hand);
+                        string part = selection.PartInfo.Part;
+                        RuntimeDiagnostics.Error($"Import {part}", ex);
+                        failures.Add($"{part}: {ex.GetBaseException().Message}");
                     }
                 }
             }
             finally
             {
                 if (currentDoc != null) AltiumApi.GlobalVars.Client.ShowDocument(currentDoc);
-                if (dialog.CloseDocuments)
-                {
-                    if (pcbDocument != null) AltiumApi.GlobalVars.Client.CloseDocument(pcbDocument);
-                    if (schDocument != null) AltiumApi.GlobalVars.Client.CloseDocument(schDocument);
-                }
             }
 
+            if (dialog.PlaceInSchematic && last.Output != null)
+                PlaceComponent(last.Output.SchematicPath, last.Reference);
+
             if (ImportLog.ErrorCount > 0)
-            {
-                MessageBox.Show(
-                    $"{ImportLog.ErrorCount} primitive(s) failed to import. Details were written to:\n{ImportLog.LogPath}",
-                    "EasyEDA Loader", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
+                failures.Add($"Import details were written to {ImportLog.LogPath}");
+            if (failures.Count > 0)
+                MessageBox.Show(string.Join(Environment.NewLine, failures), "EasyEDA Loader",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 }

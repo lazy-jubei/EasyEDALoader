@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -57,25 +58,9 @@ namespace EasyEDA_Loader
             return uri;
         }
 
-        private void LogResponse(string content)
-        {
-            try
-            {
-                var jsonObj = JToken.Parse(content);
-                string prettyJson = jsonObj.ToString(Formatting.Indented);
-                Debug.WriteLine($"[API] Response Content (Pretty JSON):\n{prettyJson}");
-                Console.WriteLine($"[API] Response Content (Pretty JSON):\n{prettyJson}");
-            }
-            catch
-            {
-                Debug.WriteLine($"[API] Response Content: {content}");
-                Console.WriteLine($"[API] Response Content: {content}");
-            }
-        }
-
         public async Task<Root> GetComponentJsonAsync(string lcscId, CancellationToken cancellationToken)
         {
-            string url = $"https://easyeda.com/api/products/{lcscId}/components?version={Version}";
+            string url = $"https://easyeda.com/api/products/{Uri.EscapeDataString(lcscId.Trim())}/components?version={Version}";
             Debug.WriteLine($"[API] GET Request: {url}");
             Console.WriteLine($"[API] GET Request: {url}");
 
@@ -90,7 +75,6 @@ namespace EasyEDA_Loader
                 
                 Debug.WriteLine($"[API] Response Length: {content.Length} characters");
                 Console.WriteLine($"[API] Response Length: {content.Length} characters");
-                LogResponse(content);
                 
                 var result = JsonConvert.DeserializeObject<Root>(content);
                 Debug.WriteLine($"[API] Deserialized successfully");
@@ -161,7 +145,7 @@ namespace EasyEDA_Loader
 
         public async Task<byte[]> LoadModelAsync(string modelUuid, CancellationToken cancellationToken)
         {
-            string url = $"https://modules.easyeda.com/qAxj6KHrDKw4blvCG8QJPs7Y/{modelUuid}";
+            string url = $"https://modules.easyeda.com/qAxj6KHrDKw4blvCG8QJPs7Y/{Uri.EscapeDataString(modelUuid.Trim())}";
             Debug.WriteLine($"[API] GET Request (Model): {url}");
             Console.WriteLine($"[API] GET Request (Model): {url}");
 
@@ -194,7 +178,7 @@ namespace EasyEDA_Loader
 
         public async Task<byte[]> LoadRawModelAsync(string modelUuid, CancellationToken cancellationToken)
         {
-            string url = $"https://modules.easyeda.com/3dmodel/{modelUuid}";
+            string url = $"https://modules.easyeda.com/3dmodel/{Uri.EscapeDataString(modelUuid.Trim())}";
             Debug.WriteLine($"[API] GET Request (Raw Model): {url}");
             Console.WriteLine($"[API] GET Request (Raw Model): {url}");
 
@@ -285,12 +269,11 @@ namespace EasyEDA_Loader
                 
                 Debug.WriteLine($"[API] Response Length: {result.Length} characters");
                 Console.WriteLine($"[API] Response Length: {result.Length} characters");
-                LogResponse(result);
                 
-                JObject obj = JObject.Parse(result);
-                JObject obj_info = (JObject)obj["result"]["lists"]["lcsc"][0];
-                var attributes = obj_info["attributes"].ToObject<Dictionary<string, string>>();
-                return ProductFromAttributes(attributes, obj_info["description"].ToString());
+                var products = JObject.Parse(result).SelectToken("result.lists.lcsc") as JArray;
+                var product = products?.OfType<JObject>().FirstOrDefault()
+                    ?? throw new InvalidDataException("EasyEDA did not return details for the requested component.");
+                return ProductFromAttributes(ReadAttributes(product["attributes"]), ReadString(product["description"]));
             }
             catch (Exception ex)
             {
@@ -306,37 +289,36 @@ namespace EasyEDA_Loader
             Vec3 rotation = null;
             Vec3 offset = null;
 
-            if (attributes != null && attributes.ContainsKey("3D Model Transform"))
+            if (attributes != null && attributes.TryGetValue("3D Model Transform", out var transform))
             {
-                try
+                var fields = (transform ?? "").Split(',');
+                var numbers = new double[9];
+                bool valid = fields.Length >= numbers.Length;
+                for (int i = 0; valid && i < numbers.Length; i++)
                 {
-                    var transformInfo = attributes["3D Model Transform"].Split(',');
-                    if (transformInfo.Length >= 9)
-                    {
-                        size = new Vec3
-                        {
-                            X = EeShape.ConvertToMM(double.Parse(transformInfo[0], System.Globalization.CultureInfo.InvariantCulture)) / 10,
-                            Y = EeShape.ConvertToMM(double.Parse(transformInfo[1], System.Globalization.CultureInfo.InvariantCulture)) / 10,
-                            Z = EeShape.ConvertToMM(double.Parse(transformInfo[2], System.Globalization.CultureInfo.InvariantCulture)) / 10,
-                        };
-                        rotation = new Vec3
-                        {
-                            X = double.Parse(transformInfo[3], System.Globalization.CultureInfo.InvariantCulture),
-                            Y = double.Parse(transformInfo[4], System.Globalization.CultureInfo.InvariantCulture),
-                            Z = double.Parse(transformInfo[5], System.Globalization.CultureInfo.InvariantCulture),
-                        };
-                        offset = new Vec3
-                        {
-                            X = EeShape.ConvertToMM(double.Parse(transformInfo[6], System.Globalization.CultureInfo.InvariantCulture)) / 10,
-                            Y = EeShape.ConvertToMM(double.Parse(transformInfo[7], System.Globalization.CultureInfo.InvariantCulture)) / 10,
-                            Z = EeShape.ConvertToMM(double.Parse(transformInfo[8], System.Globalization.CultureInfo.InvariantCulture)) / 10,
-                        };
-                    }
+                    valid = double.TryParse(fields[i], NumberStyles.Float, CultureInfo.InvariantCulture, out numbers[i])
+                        && !double.IsNaN(numbers[i]) && !double.IsInfinity(numbers[i]);
                 }
-                catch (Exception ex)
+
+                if (valid)
                 {
-                    Debug.WriteLine($"[API] Error parsing 3D Model Transform: {ex.Message}");
-                    Console.WriteLine($"[API] Error parsing 3D Model Transform: {ex.Message}");
+                    size = new Vec3
+                    {
+                        X = EeShape.ConvertToMM(numbers[0]) / 10,
+                        Y = EeShape.ConvertToMM(numbers[1]) / 10,
+                        Z = EeShape.ConvertToMM(numbers[2]) / 10,
+                    };
+                    rotation = new Vec3 { X = numbers[3], Y = numbers[4], Z = numbers[5] };
+                    offset = new Vec3
+                    {
+                        X = EeShape.ConvertToMM(numbers[6]) / 10,
+                        Y = EeShape.ConvertToMM(numbers[7]) / 10,
+                        Z = EeShape.ConvertToMM(numbers[8]) / 10,
+                    };
+                }
+                else
+                {
+                    Debug.WriteLine("[API] Invalid 3D Model Transform; ignoring incomplete coordinates.");
                 }
             }
 
@@ -401,30 +383,29 @@ namespace EasyEDA_Loader
                 
                 Debug.WriteLine($"[API] Response Length: {result.Length} characters");
                 Console.WriteLine($"[API] Response Length: {result.Length} characters");
-                LogResponse(result);
                 
                 JObject obj = JObject.Parse(result);
                 JArray products = obj.SelectToken("result.productList") as JArray
                     ?? throw new InvalidDataException("EasyEDA returned no product list.");
                 List<PartInfo> productList = new();
-                foreach(var product in products)
+                foreach (var product in products.OfType<JObject>())
                 {
-                    var deviceInfo = product["device_info"] as JObject;
-                    var attributes = deviceInfo?["attributes"]?.ToObject<Dictionary<string, string>>();
-                    var productInfo = ProductFromAttributes(attributes,
-                        (string)deviceInfo?["description"] ?? (string)deviceInfo?["Description"] ?? "");
-                    bool hasSymbol = HasValue(deviceInfo?["symbol_info"]);
-                    bool hasFootprint = HasValue(deviceInfo?["footprint_info"]);
-                    bool has3d = HasValue(deviceInfo?["footprint_info"]?["model_3d"]);
+                    string partNumber = ReadString(product["number"]);
+                    if (string.IsNullOrWhiteSpace(partNumber)) continue;
+
+                    var device = product["device_info"] as JObject;
+                    var footprint = device?["footprint_info"];
+                    var productInfo = ProductFromAttributes(ReadAttributes(device?["attributes"]),
+                        ReadString(device?["description"]) ?? ReadString(device?["Description"]) ?? "");
                     productList.Add(new PartInfo
                     {
-                        Name = (string)product["mpn"] ?? "",
-                        Part = (string)product["number"] ?? "",
-                        Description = productInfo.Description ?? "",
+                        Name = ReadString(product["mpn"]) ?? "",
+                        Part = partNumber,
+                        Description = productInfo.Description,
                         Info = productInfo,
-                        HasSymbol = hasSymbol,
-                        HasFootprint = hasFootprint,
-                        Has3d = has3d,
+                        HasSymbol = HasValue(device?["symbol_info"]),
+                        HasFootprint = HasValue(footprint),
+                        Has3d = HasValue((footprint as JObject)?["model_3d"]),
                     });
                 }
                 
@@ -439,8 +420,27 @@ namespace EasyEDA_Loader
                 throw;
             }
         }
+        private static Dictionary<string, string> ReadAttributes(JToken token)
+        {
+            var attributes = new Dictionary<string, string>();
+            if (token is JObject properties)
+            {
+                foreach (var property in properties.Properties())
+                {
+                    string value = ReadString(property.Value);
+                    if (value != null) attributes[property.Name] = value;
+                }
+            }
+            return attributes;
+        }
+
+        private static string ReadString(JToken token) => token is JValue value && value.Value != null
+            ? Convert.ToString(value.Value, CultureInfo.InvariantCulture)
+            : null;
+
         private static bool HasValue(JToken token) => token != null &&
             token.Type != JTokenType.Null &&
+            (token.Type != JTokenType.Boolean || (bool)token) &&
             (token.Type != JTokenType.String || !string.IsNullOrWhiteSpace((string)token));
     }
 }

@@ -147,12 +147,32 @@
 
         <!-- Bottom Panel with Options and Buttons -->
         <Grid Grid.Row="2" Grid.Column="0" Margin="12,0,12,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+            <Grid Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="outputDirectoryLabel" Text="Output directory"
+                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBox x:Name="outputDirectoryTextBox" Grid.Column="1"
+                         Height="24" Margin="0,0,8,0" VerticalContentAlignment="Center"
+                         AutomationProperties.LabeledBy="{Binding ElementName=outputDirectoryLabel}"/>
+                <dx:SimpleButton x:Name="browseOutputButton" Grid.Column="2"
+                                 Content="Browse..." Width="75" Height="24"
+                                 Click="BrowseOutputButton_Click"/>
+            </Grid>
+
+            <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                 <dxe:CheckEdit x:Name="closeDocumentsCheckBox" 
                           Content="Close library documents after adding"
                           VerticalAlignment="Center"
@@ -163,7 +183,7 @@
                           VerticalAlignment="Center"/>
             </StackPanel>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                 <dx:SimpleButton x:Name="saveModelButton" 
                         Content="Save Model..."
                         Width="100"

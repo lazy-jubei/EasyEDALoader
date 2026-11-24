@@ -185,15 +185,16 @@ namespace EasyEDA_Loader
             }
         }
 
-        public void AddToComponent(IPCB_LibComponent c, EeFootprintContext ctx)
+        public bool AddToComponent(IPCB_LibComponent c, EeFootprintContext ctx)
         {
-            foreach (var shape in Shapes)
+            foreach (var shape in Shapes ?? Enumerable.Empty<EeFootprintShape>())
             {
-                if (shape != null)
-                {
-                    shape.AddToComponent(c, ctx);
-                }
+                ctx.CancelToken.ThrowIfCancellationRequested();
+                // A failed optional STEP download must not discard a valid footprint.
+                if (shape != null && !shape.AddToComponent(c, ctx) && !(shape is EeFootprint3dModel))
+                    return false;
             }
+            return true;
         }
     }
 

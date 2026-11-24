@@ -111,8 +111,10 @@ namespace EasyEDA_Loader
     {
         public static List<EePoint> ListFromString(string data)
         {
-            var pts = data.Split(' ');
-            var points = new List<EePoint>();
+            var pts = data.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+            if (pts.Length % 2 != 0)
+                throw new FormatException("An EasyEDA point list must contain coordinate pairs.");
+            var points = new List<EePoint>(pts.Length / 2);
             for (var i = 0; i < pts.Length / 2; i++)
             {
                 points.Add(new EePoint

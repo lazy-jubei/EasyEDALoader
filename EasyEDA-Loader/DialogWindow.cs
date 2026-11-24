@@ -36,10 +36,12 @@ namespace EasyEDA_Loader
         public List<ComponentSelection> SelectedComponents { get; private set; }
         public bool CloseDocuments => closeDocumentsCheckBox?.IsChecked == true;
         public bool PlaceInSchematic => placeInSchematicCheckBox?.IsChecked == true;
+        public string OutputDirectory { get; private set; }
 
         public DialogWindow()
         {
             InitializeComponent();
+            outputDirectoryTextBox.Text = LibraryOutput.PreferredDirectory();
 #if ALTIUM17
             // DevExpress 15.2 accepts numeric column widths only.
             resultsGrid.SizeChanged += (s, e) => descriptionColumn.Width = Math.Max(200, resultsGrid.ActualWidth - 290);
@@ -333,6 +335,18 @@ namespace EasyEDA_Loader
             }
         }
 
+        private void BrowseOutputButton_Click(object sender, RoutedEventArgs e)
+        {
+            using var picker = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Choose the directory for the component library folders.",
+                SelectedPath = outputDirectoryTextBox.Text,
+                ShowNewFolderButton = true
+            };
+            if (picker.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                outputDirectoryTextBox.Text = picker.SelectedPath;
+        }
+
         private async void AddToLibraryButton_Click(object sender, RoutedEventArgs e)
         {
             if (_closed || !addToLibraryButton.IsEnabled) return;
@@ -347,22 +361,25 @@ namespace EasyEDA_Loader
 
             addToLibraryButton.IsEnabled = false;
             searchButton.IsEnabled = false;
+            outputDirectoryTextBox.IsEnabled = false;
+            browseOutputButton.IsEnabled = false;
 
             try
             {
+                string output = LibraryOutput.NormalizeDirectory(outputDirectoryTextBox.Text);
                 Mouse.OverrideCursor = Cursors.Wait;
                 SelectedComponents.Clear();
 
+                var failures = new List<string>();
                 foreach (var partViewModel in selectedParts)
                 {
                     var partInfo = partViewModel.PartInfo;
-
-                    // Fetch component data
-                    var root = await Api.GetComponentJsonAsync(partInfo.Part, token);
-                    if (token.IsCancellationRequested) return;
-
-                    if (root?.Component != null)
+                    try
                     {
+                        var root = await Api.GetComponentJsonAsync(partInfo.Part, token);
+                        token.ThrowIfCancellationRequested();
+                        if (root?.Component == null)
+                            throw new InvalidDataException("No component data was returned.");
                         var component = root.Component;
                         var has3dModel = component.PackageDetail?.Footprint?.GetModel() != null;
                         var hasFootprint = component.PackageDetail?.Footprint != null;
@@ -374,36 +391,46 @@ namespace EasyEDA_Loader
                         SelectedComponents.Add(new ComponentSelection
                         {
                             PartInfo = partInfo,
-                            Root = root,
-                            Include3dModel = has3dModel,
-                            IncludeFootprint = hasFootprint
+                            Root = root
                         });
+                    }
+                    catch (Exception ex) when (!token.IsCancellationRequested)
+                    {
+                        failures.Add($"{partInfo.Part}: {ex.GetBaseException().Message}");
+                        RuntimeDiagnostics.Error($"Fetch {partInfo.Part}", ex);
                     }
                 }
 
                 if (SelectedComponents.Count == 0)
-                    throw new InvalidOperationException("No component data was returned for the selected parts.");
+                    throw new InvalidOperationException(string.Join(Environment.NewLine, failures));
+                if (failures.Count > 0)
+                    MessageBox.Show(this, string.Join(Environment.NewLine, failures), "Components skipped",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                OutputDirectory = output;
                 DialogResult = true;
-                Close();
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { }
             catch (Exception ex)
             {
                 if (_closed) return;
                 MessageBox.Show($"Failed to load component data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                addToLibraryButton.IsEnabled = true;
-                searchButton.IsEnabled = true;
             }
             finally
             {
                 Mouse.OverrideCursor = null;
+                if (!_closed)
+                {
+                    searchButton.IsEnabled = true;
+                    outputDirectoryTextBox.IsEnabled = true;
+                    browseOutputButton.IsEnabled = true;
+                    UpdateAddButtonState();
+                }
             }
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = false;
-            Close();
         }
 
         private async void SaveModelButton_Click(object sender, RoutedEventArgs e)
